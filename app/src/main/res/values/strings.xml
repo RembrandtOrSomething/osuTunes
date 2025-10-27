@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">osu!tunes</string>
+    <string name="choose_folder">📁 Choose Folder</string>
+    <string name="play">▶</string>
+    <string name="pause">⏸</string>
+    <string name="next">⏭</string>
+    <string name="previous">⏮</string>
+    <string name="loading_songs">Loading songs...</string>
+    <string name="no_songs">No songs found in this folder</string>
+</resources>

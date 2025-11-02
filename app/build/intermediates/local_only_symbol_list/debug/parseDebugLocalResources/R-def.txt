@@ -1,0 +1,19 @@
+R_DEF: Internal format may change without notice
+local
+drawable ic_music_note
+id appTitle
+id folderButton
+id nextButton
+id playButton
+id prevButton
+id songList
+layout activity_main
+string app_name
+string choose_folder
+string loading_songs
+string next
+string no_songs
+string pause
+string play
+string previous
+style Theme.OsuTunes.Dark

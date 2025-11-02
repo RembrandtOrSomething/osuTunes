@@ -1,0 +1,10 @@
+[
+    {
+        "merged": "com.example.osutunes.app-debug-31:/layout_activity_main.xml.flat",
+        "source": "com.example.osutunes.app-main-33:/layout/activity_main.xml"
+    },
+    {
+        "merged": "com.example.osutunes.app-debug-31:/drawable_ic_music_note.xml.flat",
+        "source": "com.example.osutunes.app-main-33:/drawable/ic_music_note.xml"
+    }
+]

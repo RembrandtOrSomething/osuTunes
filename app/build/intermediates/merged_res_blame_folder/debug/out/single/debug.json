@@ -1,0 +1,14 @@
+[
+    {
+        "merged": "com.example.osutunes.app-merged_res-35:/layout_activity_main.xml.flat",
+        "source": "com.example.osutunes.app-main-37:/layout/activity_main.xml"
+    },
+    {
+        "merged": "com.example.osutunes.app-merged_res-35:/drawable_background_image.jpg.flat",
+        "source": "com.example.osutunes.app-main-37:/drawable/background_image.jpg"
+    },
+    {
+        "merged": "com.example.osutunes.app-merged_res-35:/drawable_ic_music_note.xml.flat",
+        "source": "com.example.osutunes.app-main-37:/drawable/ic_music_note.xml"
+    }
+]

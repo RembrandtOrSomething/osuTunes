@@ -5,8 +5,11 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
+import android.widget.ImageButton;
 import android.widget.LinearLayout;
 import android.widget.ListView;
+import android.widget.ProgressBar;
+import android.widget.SeekBar;
 import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -22,10 +25,31 @@ public final class ActivityMainBinding implements ViewBinding {
   private final LinearLayout rootView;
 
   @NonNull
-  public final TextView appTitle;
+  public final Button abortButton;
+
+  @NonNull
+  public final ImageButton batchSizeInfoButton;
+
+  @NonNull
+  public final TextView batchSizeLabel;
+
+  @NonNull
+  public final TextView batchSizeNote;
+
+  @NonNull
+  public final SeekBar batchSizeSeekBar;
 
   @NonNull
   public final Button folderButton;
+
+  @NonNull
+  public final TextView folderCountLabel;
+
+  @NonNull
+  public final ProgressBar loadingSpinner;
+
+  @NonNull
+  public final TextView loadingText;
 
   @NonNull
   public final Button nextButton;
@@ -37,18 +61,46 @@ public final class ActivityMainBinding implements ViewBinding {
   public final Button prevButton;
 
   @NonNull
+  public final Button reloadButton;
+
+  @NonNull
+  public final ProgressBar scanProgressBar;
+
+  @NonNull
+  public final TextView scanningStatus;
+
+  @NonNull
   public final ListView songList;
 
-  private ActivityMainBinding(@NonNull LinearLayout rootView, @NonNull TextView appTitle,
-      @NonNull Button folderButton, @NonNull Button nextButton, @NonNull Button playButton,
-      @NonNull Button prevButton, @NonNull ListView songList) {
+  @NonNull
+  public final SeekBar songSeekBar;
+
+  private ActivityMainBinding(@NonNull LinearLayout rootView, @NonNull Button abortButton,
+      @NonNull ImageButton batchSizeInfoButton, @NonNull TextView batchSizeLabel,
+      @NonNull TextView batchSizeNote, @NonNull SeekBar batchSizeSeekBar,
+      @NonNull Button folderButton, @NonNull TextView folderCountLabel,
+      @NonNull ProgressBar loadingSpinner, @NonNull TextView loadingText,
+      @NonNull Button nextButton, @NonNull Button playButton, @NonNull Button prevButton,
+      @NonNull Button reloadButton, @NonNull ProgressBar scanProgressBar,
+      @NonNull TextView scanningStatus, @NonNull ListView songList, @NonNull SeekBar songSeekBar) {
     this.rootView = rootView;
-    this.appTitle = appTitle;
+    this.abortButton = abortButton;
+    this.batchSizeInfoButton = batchSizeInfoButton;
+    this.batchSizeLabel = batchSizeLabel;
+    this.batchSizeNote = batchSizeNote;
+    this.batchSizeSeekBar = batchSizeSeekBar;
     this.folderButton = folderButton;
+    this.folderCountLabel = folderCountLabel;
+    this.loadingSpinner = loadingSpinner;
+    this.loadingText = loadingText;
     this.nextButton = nextButton;
     this.playButton = playButton;
     this.prevButton = prevButton;
+    this.reloadButton = reloadButton;
+    this.scanProgressBar = scanProgressBar;
+    this.scanningStatus = scanningStatus;
     this.songList = songList;
+    this.songSeekBar = songSeekBar;
   }
 
   @Override
@@ -78,15 +130,57 @@ public final class ActivityMainBinding implements ViewBinding {
     // This is done to optimize the compiled bytecode for size and performance.
     int id;
     missingId: {
-      id = R.id.appTitle;
-      TextView appTitle = ViewBindings.findChildViewById(rootView, id);
-      if (appTitle == null) {
+      id = R.id.abortButton;
+      Button abortButton = ViewBindings.findChildViewById(rootView, id);
+      if (abortButton == null) {
+        break missingId;
+      }
+
+      id = R.id.batchSizeInfoButton;
+      ImageButton batchSizeInfoButton = ViewBindings.findChildViewById(rootView, id);
+      if (batchSizeInfoButton == null) {
+        break missingId;
+      }
+
+      id = R.id.batchSizeLabel;
+      TextView batchSizeLabel = ViewBindings.findChildViewById(rootView, id);
+      if (batchSizeLabel == null) {
+        break missingId;
+      }
+
+      id = R.id.batchSizeNote;
+      TextView batchSizeNote = ViewBindings.findChildViewById(rootView, id);
+      if (batchSizeNote == null) {
+        break missingId;
+      }
+
+      id = R.id.batchSizeSeekBar;
+      SeekBar batchSizeSeekBar = ViewBindings.findChildViewById(rootView, id);
+      if (batchSizeSeekBar == null) {
         break missingId;
       }
 
       id = R.id.folderButton;
       Button folderButton = ViewBindings.findChildViewById(rootView, id);
       if (folderButton == null) {
+        break missingId;
+      }
+
+      id = R.id.folderCountLabel;
+      TextView folderCountLabel = ViewBindings.findChildViewById(rootView, id);
+      if (folderCountLabel == null) {
+        break missingId;
+      }
+
+      id = R.id.loadingSpinner;
+      ProgressBar loadingSpinner = ViewBindings.findChildViewById(rootView, id);
+      if (loadingSpinner == null) {
+        break missingId;
+      }
+
+      id = R.id.loadingText;
+      TextView loadingText = ViewBindings.findChildViewById(rootView, id);
+      if (loadingText == null) {
         break missingId;
       }
 
@@ -108,14 +202,40 @@ public final class ActivityMainBinding implements ViewBinding {
         break missingId;
       }
 
+      id = R.id.reloadButton;
+      Button reloadButton = ViewBindings.findChildViewById(rootView, id);
+      if (reloadButton == null) {
+        break missingId;
+      }
+
+      id = R.id.scanProgressBar;
+      ProgressBar scanProgressBar = ViewBindings.findChildViewById(rootView, id);
+      if (scanProgressBar == null) {
+        break missingId;
+      }
+
+      id = R.id.scanningStatus;
+      TextView scanningStatus = ViewBindings.findChildViewById(rootView, id);
+      if (scanningStatus == null) {
+        break missingId;
+      }
+
       id = R.id.songList;
       ListView songList = ViewBindings.findChildViewById(rootView, id);
       if (songList == null) {
         break missingId;
       }
 
-      return new ActivityMainBinding((LinearLayout) rootView, appTitle, folderButton, nextButton,
-          playButton, prevButton, songList);
+      id = R.id.songSeekBar;
+      SeekBar songSeekBar = ViewBindings.findChildViewById(rootView, id);
+      if (songSeekBar == null) {
+        break missingId;
+      }
+
+      return new ActivityMainBinding((LinearLayout) rootView, abortButton, batchSizeInfoButton,
+          batchSizeLabel, batchSizeNote, batchSizeSeekBar, folderButton, folderCountLabel,
+          loadingSpinner, loadingText, nextButton, playButton, prevButton, reloadButton,
+          scanProgressBar, scanningStatus, songList, songSeekBar);
     }
     String missingId = rootView.getResources().getResourceName(id);
     throw new NullPointerException("Missing required view with ID: ".concat(missingId));

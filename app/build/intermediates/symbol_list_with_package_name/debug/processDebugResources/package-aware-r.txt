@@ -2997,6 +2997,7 @@ drawable abc_textfield_search_material
 drawable abc_vector_test
 drawable avd_hide_password
 drawable avd_show_password
+drawable background_image
 drawable btn_checkbox_checked_mtrl
 drawable btn_checkbox_checked_to_unchecked_mtrl_animation
 drawable btn_checkbox_unchecked_mtrl
@@ -3119,6 +3120,7 @@ id SHOW_PROGRESS
 id SYM
 id TOP_END
 id TOP_START
+id abortButton
 id above
 id accelerate
 id accessibility_action_clickable_span
@@ -3186,7 +3188,6 @@ id animateToEnd
 id animateToStart
 id antiClockwise
 id anticipate
-id appTitle
 id arc
 id asConfigured
 id async
@@ -3197,6 +3198,10 @@ id autoCompleteToStart
 id axisRelative
 id barrier
 id baseline
+id batchSizeInfoButton
+id batchSizeLabel
+id batchSizeNote
+id batchSizeSeekBar
 id beginOnFirstDraw
 id beginning
 id below
@@ -3306,6 +3311,7 @@ id fixed
 id flip
 id floating
 id folderButton
+id folderCountLabel
 id forever
 id fragment_container_view_tag
 id frost
@@ -3352,6 +3358,8 @@ id line3
 id linear
 id listMode
 id list_item
+id loadingSpinner
+id loadingText
 id m3_side_sheet
 id marquee
 id masked
@@ -3473,6 +3481,7 @@ id progress_horizontal
 id radio
 id ratio
 id rectangles
+id reloadButton
 id report_drawn
 id reverseSawtooth
 id right
@@ -3485,6 +3494,8 @@ id save_non_transition_alpha
 id save_overlay_view
 id sawtooth
 id scale
+id scanProgressBar
+id scanningStatus
 id screen
 id scroll
 id scrollIndicatorDown
@@ -3519,6 +3530,7 @@ id snackbar_text
 id snap
 id snapMargins
 id songList
+id songSeekBar
 id south
 id spacer
 id special_effects_controller_view_tag

@@ -1,12 +1,24 @@
 R_DEF: Internal format may change without notice
 local
+drawable background_image
 drawable ic_music_note
-id appTitle
+id abortButton
+id batchSizeInfoButton
+id batchSizeLabel
+id batchSizeNote
+id batchSizeSeekBar
 id folderButton
+id folderCountLabel
+id loadingSpinner
+id loadingText
 id nextButton
 id playButton
 id prevButton
+id reloadButton
+id scanProgressBar
+id scanningStatus
 id songList
+id songSeekBar
 layout activity_main
 string app_name
 string choose_folder

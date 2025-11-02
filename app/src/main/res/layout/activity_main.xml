@@ -1,107 +1,125 @@
 <?xml version="1.0" encoding="utf-8"?>
+
 <LinearLayout
-    xmlns:android="http://schemas.android.com/apk/res/android"
+xmlns:android="http://schemas.android.com/apk/res/android"
+android:layout_width="match_parent"
+android:layout_height="match_parent"
+android:orientation="vertical"
+android:padding="16dp">
+
+<!-- Loading and Scanning Status -->
+<TextView
+    android:id="@+id/loadingText"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:text="Loading songs..."
+    android:textSize="18sp"
+    android:layout_gravity="center"
+    android:visibility="gone" />
+
+<ProgressBar
+    android:id="@+id/loadingSpinner"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:layout_gravity="center"
+    android:visibility="gone" />
+
+<ProgressBar
+    android:id="@+id/scanProgressBar"
+    style="?android:attr/progressBarStyleHorizontal"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:padding="16dp"
-    android:background="@drawable/background_image">
+    android:layout_height="wrap_content"
+    android:max="100"
+    android:progress="0"
+    android:visibility="gone"
+    android:layout_marginTop="8dp" />
 
-    <TextView
-        android:id="@+id/loadingText"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Loading songs..."
-        android:textSize="18sp"
-        android:textColor="#FFFFFF"
-        android:layout_gravity="center"
-        android:visibility="gone" />
+<TextView
+    android:id="@+id/scanningStatus"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:text="Scanning folder..."
+    android:gravity="center"
+    android:visibility="gone"
+    android:layout_marginTop="4dp" />
 
-    <ProgressBar
-        android:id="@+id/loadingSpinner"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="center"
-        android:visibility="gone" />
+<TextView
+    android:id="@+id/folderCountLabel"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:text="Scanned 0 of 0 folders"
+    android:gravity="center"
+    android:visibility="gone"
+    android:layout_marginBottom="8dp" />
 
-    <ProgressBar
-        android:id="@+id/scanProgressBar"
-        style="?android:attr/progressBarStyleHorizontal"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:max="100"
-        android:progress="0"
-        android:visibility="gone"
-        android:layout_marginTop="8dp" />
+<!-- Control Buttons (Folder Management) -->
+<Button
+    android:id="@+id/folderButton"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:text="Select Songs Folder" />
 
-    <TextView
-        android:id="@+id/scanningStatus"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Scanning folder..."
-        android:textColor="#FFFFFF"
-        android:textSize="16sp"
-        android:visibility="gone"
-        android:layout_marginBottom="4dp" />
+<Button
+    android:id="@+id/reloadButton"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:text="Rescan All Songs" />
 
-    <TextView
-        android:id="@+id/folderCountLabel"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Scanned 0 of 0 folders"
-        android:textColor="#FFFFFF"
-        android:textSize="14sp"
-        android:visibility="gone"
-        android:layout_marginBottom="8dp" />
+<!-- NEW: Import OSZ Button -->
+<Button
+    android:id="@+id/importOszButton"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:text="Import .osz File(s)" />
+
+<!-- Seek Bar -->
+<SeekBar
+    android:id="@+id/songSeekBar"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginTop="8dp"
+    android:layout_marginBottom="8dp" />
+
+<!-- Song List -->
+<ListView
+    android:id="@+id/songList"
+    android:layout_width="match_parent"
+    android:layout_height="0dp"
+    android:layout_weight="1"
+    android:dividerHeight="1dp" />
+
+<!-- Playback Controls -->
+<LinearLayout
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:gravity="center"
+    android:layout_marginTop="8dp">
 
     <Button
-        android:id="@+id/folderButton"
-        android:layout_width="match_parent"
+        android:id="@+id/prevButton"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Select Folder" />
+        android:text="⏮"
+        android:textSize="20sp" />
 
     <Button
-        android:id="@+id/reloadButton"
-        android:layout_width="match_parent"
+        android:id="@+id/playButton"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Reload Songs" />
+        android:text="▶"
+        android:textSize="20sp"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp" />
 
-    <SeekBar
-        android:id="@+id/songSeekBar"
-        android:layout_width="match_parent"
+    <Button
+        android:id="@+id/nextButton"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        android:layout_marginBottom="8dp" />
+        android:text="⏭"
+        android:textSize="20sp" />
 
-    <ListView
-        android:id="@+id/songList"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
-        android:dividerHeight="1dp" />
+</LinearLayout>
 
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center">
 
-        <Button
-            android:id="@+id/prevButton"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="⏮" />
-
-        <Button
-            android:id="@+id/playButton"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="▶" />
-
-        <Button
-            android:id="@+id/nextButton"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="⏭" />
-    </LinearLayout>
 </LinearLayout>

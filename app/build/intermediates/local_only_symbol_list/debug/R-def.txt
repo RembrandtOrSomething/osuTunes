@@ -4,6 +4,7 @@ drawable background_image
 drawable ic_music_note
 id folderButton
 id folderCountLabel
+id importOszButton
 id loadingSpinner
 id loadingText
 id nextButton

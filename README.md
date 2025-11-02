@@ -1,4 +1,4 @@
-do whatever the fk you want with this code, it's not mine to begin with.
+do whatever the fk you want with this code, it's not mine to begin with. (made using gemini, fkin' copilot and chatgpt, the unholy trinity)
 
 i suggest using v1.5.0 if you already had osu!droid. if not, v2.1.0 is good for those who want their songs to come from the osu! website.
 

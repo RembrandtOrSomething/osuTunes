@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string-array name="sort_options">
-<item>Title</item>
-<item>Artist</item>
-<item>Versions</item>
-</string-array>
+        <item>Title</item>
+        <item>Artist</item>
+        <item>Versions</item>
+    </string-array>
     <string name="app_name">osu!tunes</string>
     <string name="choose_folder">📁 Choose Folder</string>
     <string name="loading_songs">Loading songs...</string>

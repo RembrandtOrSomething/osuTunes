@@ -9,7 +9,6 @@
     android:paddingBottom="8dp"
     android:background="?android:attr/selectableItemBackground">
 
-    <!-- Song Title -->
     <TextView
         android:id="@+id/textTitle"
         android:layout_width="match_parent"
@@ -20,7 +19,6 @@
         android:ellipsize="end"
         android:textColor="#FFFFFF" />
 
-    <!-- Artist Name -->
     <TextView
         android:id="@+id/textArtist"
         android:layout_width="match_parent"
@@ -31,4 +29,3 @@
         android:textColor="#B3FFFFFF" />
 
 </LinearLayout>
-

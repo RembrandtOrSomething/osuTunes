@@ -1,9 +1,5 @@
 [
     {
-        "merged": "com.example.osutunes.app-merged_res-35:/layout_activity_main.xml.flat",
-        "source": "com.example.osutunes.app-main-37:/layout/activity_main.xml"
-    },
-    {
         "merged": "/home/codespace/.gradle/daemon/8.14.2/com.example.osutunes.app-merged_res-35:/drawable_ic_music_note.xml.flat",
         "source": "/home/codespace/.gradle/daemon/8.14.2/com.example.osutunes.app-main-37:/drawable/ic_music_note.xml"
     },
@@ -18,6 +14,14 @@
     {
         "merged": "/home/codespace/.gradle/daemon/8.14.2/com.example.osutunes.app-merged_res-35:/layout_activity_main.xml.flat",
         "source": "/home/codespace/.gradle/daemon/8.14.2/com.example.osutunes.app-main-37:/layout/activity_main.xml"
+    },
+    {
+        "merged": "/home/codespace/.gradle/daemon/8.14.2/com.example.osutunes.app-merged_res-35:/layout_dialog_playback_settings.xml.flat",
+        "source": "/home/codespace/.gradle/daemon/8.14.2/com.example.osutunes.app-main-37:/layout/dialog_playback_settings.xml"
+    },
+    {
+        "merged": "/home/codespace/.gradle/daemon/8.14.2/com.example.osutunes.app-merged_res-35:/drawable_rounded_edittext_bg.xml.flat",
+        "source": "/home/codespace/.gradle/daemon/8.14.2/com.example.osutunes.app-main-37:/drawable/rounded_edittext_bg.xml"
     },
     {
         "merged": "/home/codespace/.gradle/daemon/8.14.2/com.example.osutunes.app-merged_res-35:/drawable_background_image.jpg.flat",

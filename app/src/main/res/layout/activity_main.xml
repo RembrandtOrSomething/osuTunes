@@ -5,7 +5,9 @@
     android:layout_height="match_parent"
     android:orientation="vertical"
     android:padding="16dp"
-    android:background="#1E1E2E"> <TextView
+    android:background="#1E1E2E">
+
+    <TextView
         android:id="@+id/loadingText"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
@@ -57,7 +59,6 @@
         android:textSize="12sp"
         android:layout_marginBottom="16dp"/>
 
-
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -93,7 +94,6 @@
             android:text="Import .osz"
             android:textSize="12sp"
             android:backgroundTint="#A6E3A1"/>
-
     </LinearLayout>
 
     <LinearLayout
@@ -121,7 +121,6 @@
             android:inputType="text"
             android:paddingStart="8dp"
             android:background="@drawable/rounded_edittext_bg"/>
-
     </LinearLayout>
 
     <ListView
@@ -168,80 +167,17 @@
             android:paddingStart="4dp"/>
     </LinearLayout>
 
-    <LinearLayout
+    <!-- Playback settings are moved to a dialog. Launcher button lives on main screen -->
+    <Button
+        android:id="@+id/playbackSettingsButton"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
+        android:text="Playback Settings"
+        android:textSize="12sp"
         android:layout_marginTop="8dp"
-        android:paddingStart="8dp"
-        android:paddingEnd="8dp">
+        android:backgroundTint="#89B4FA"/>
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Tempo:"
-            android:textColor="#BAC2DE"
-            android:textSize="14sp"/>
-
-        <TextView
-            android:id="@+id/tempoTextView"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="1.00x"
-            android:textColor="#CBA6F7"
-            android:textSize="14sp"
-            android:layout_marginStart="4dp"
-            android:layout_marginEnd="8dp"/>
-
-        <SeekBar
-            android:id="@+id/tempoSeekBar"
-            android:layout_width="0dp"
-            android:layout_weight="1"
-            android:layout_height="wrap_content"
-            android:max="400"
-            android:progress="100"
-            android:progressTint="#CBA6F7"
-            android:thumbTint="#CBA6F7"/>
-
-    </LinearLayout>
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:layout_marginTop="4dp"
-        android:paddingStart="8dp"
-        android:paddingEnd="8dp">
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Pitch:"
-            android:textColor="#BAC2DE"
-            android:textSize="14sp"/>
-
-        <TextView
-            android:id="@+id/pitchTextView"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="1.00x"
-            android:textColor="#F38BA8"
-            android:textSize="14sp"
-            android:layout_marginStart="4dp"
-            android:layout_marginEnd="8dp"/>
-
-        <SeekBar
-            android:id="@+id/pitchSeekBar"
-            android:layout_width="0dp"
-            android:layout_weight="1"
-            android:layout_height="wrap_content"
-            android:max="400"
-            android:progress="100"
-            android:progressTint="#F38BA8"
-            android:thumbTint="#F38BA8"/>
-
-    </LinearLayout>
+    <!-- Primary playback controls -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -250,42 +186,30 @@
         android:layout_marginTop="8dp">
 
         <Button
-            android:id="@+id/shuffleButton"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="🔀 Off"
-            android:backgroundTint="#F9E2AF"
-            android:layout_marginEnd="8dp"/>
-
-        <Button
-            android:id="@+id/repeatButton"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="🔁 Off"
-            android:backgroundTint="#F9E2AF"
-            android:layout_marginEnd="16dp"/>
-
-        <Button
             android:id="@+id/prevButton"
-            android:layout_width="wrap_content"
+            android:layout_width="0dp"
+            android:layout_weight="1"
             android:layout_height="wrap_content"
-            android:text="⏮"
-            android:backgroundTint="#89B4FA"
-            android:layout_marginEnd="8dp"/>
+            android:text="Prev"
+            android:backgroundTint="#A6E3A1"/>
 
         <Button
             android:id="@+id/playButton"
-            android:layout_width="wrap_content"
+            android:layout_width="0dp"
+            android:layout_weight="1"
             android:layout_height="wrap_content"
-            android:text="▶"
-            android:backgroundTint="#A6E3A1"
-            android:layout_marginEnd="8dp"/>
+            android:text="Play"
+            android:layout_marginStart="8dp"
+            android:layout_marginEnd="8dp"
+            android:backgroundTint="#CBA6F7"/>
 
         <Button
             android:id="@+id/nextButton"
-            android:layout_width="wrap_content"
+            android:layout_width="0dp"
+            android:layout_weight="1"
             android:layout_height="wrap_content"
-            android:text="⏭"
-            android:backgroundTint="#89B4FA"/>
+            android:text="Next"
+            android:backgroundTint="#F38BA8"/>
     </LinearLayout>
+
 </LinearLayout>

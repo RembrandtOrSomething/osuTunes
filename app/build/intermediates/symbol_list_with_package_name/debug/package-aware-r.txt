@@ -3336,6 +3336,9 @@ id north
 id notification_background
 id notification_main_column
 id notification_main_column_container
+id nowPlayingBar
+id nowPlayingClose
+id nowPlayingText
 id off
 id on
 id onInterceptTouchReturnSwipe

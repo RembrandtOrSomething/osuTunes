@@ -11,6 +11,9 @@ id importOszButton
 id loadingSpinner
 id loadingText
 id nextButton
+id nowPlayingBar
+id nowPlayingClose
+id nowPlayingText
 id pitchResetButton
 id pitchSeekBar
 id pitchTextView

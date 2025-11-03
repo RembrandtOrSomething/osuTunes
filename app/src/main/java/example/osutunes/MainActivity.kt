@@ -1,13 +1,13 @@
-package com.example.osutunes // IMPORTANT: Must match the namespace in app/build.gradle
+package com.example.osutunes
 
 import android.app.Activity
 import android.app.AlertDialog
 import android.content.Context
 import android.content.Intent
 import android.media.MediaPlayer
-import android.media.PlaybackParams // Import for speed/pitch control
+import android.media.PlaybackParams
 import android.net.Uri
-import android.os.Build // Import for version check
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -18,12 +18,14 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.*
-import android.widget.Toast // Explicitly import Toast
+import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.documentfile.provider.DocumentFile
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.*
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.decodeFromString
@@ -33,13 +35,13 @@ import java.io.File
 import java.io.IOException
 import java.io.InputStreamReader
 import java.util.*
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.zip.ZipInputStream
 import android.os.Process
-import com.example.osutunes.R // Corrected: This import is now redundant but kept for clarity if using a different package structure.
+import com.example.osutunes.R
 
 class MainActivity : AppCompatActivity() {
 
-    // --- Constants and Tags ---
     private companion object {
         const val PREFS_NAME = "osuTunesPrefs"
         const val SAVED_URI_KEY = "savedFolderUri"
@@ -47,23 +49,26 @@ class MainActivity : AppCompatActivity() {
         const val TAG = "OsuTunes"
         const val TEMPO_KEY = "savedPlaybackTempo"
         const val PITCH_KEY = "savedPlaybackPitch"  
-
-        // JSON parser configured to ignore keys we might not recognize, increasing stability
         val Json = Json { ignoreUnknownKeys = true }
     }
 
-    // --- Data Classes ---
     @Serializable
     private data class SongEntry(
         val label: String,
         val uriString: String,
         val artist: String,
-        val title: String
+        val title: String,
+        val bpm: Double? = null  // NEW: BPM field
     )
-    private data class OsuMetadata(val audioFilename: String, val artist: String, val title: String)
+    
+    private data class OsuMetadata(
+        val audioFilename: String, 
+        val artist: String, 
+        val title: String,
+        val bpm: Double? = null  // NEW: BPM field
+    )
 
-    // --- UI Components ---
-    // All IDs matched against the provided activity_main.xml (not shown in full, but based on recent changes)
+    // UI Components
     private lateinit var listView: ListView
     private lateinit var playButton: Button
     private lateinit var nextButton: Button
@@ -71,7 +76,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var folderButton: Button
     private lateinit var reloadButton: Button
     private lateinit var importOszButton: Button
-    private lateinit var shuffleButton: Button
+    private lateinit var shuffleButton: Button  // REMOVED: Will hide this
     private lateinit var repeatButton: Button
     private lateinit var loadingSpinner: ProgressBar
     private lateinit var loadingText: TextView
@@ -89,23 +94,26 @@ class MainActivity : AppCompatActivity() {
     private lateinit var pitchTextView: TextView
     private lateinit var tempoResetButton: Button
     private lateinit var pitchResetButton: Button
+    private lateinit var nowPlayingBar: LinearLayout
+    private lateinit var nowPlayingText: TextView
+    private lateinit var nowPlayingClose: Button
 
-
-    // --- State Variables ---
+    // State Variables
     private var allSongEntries = mutableListOf<SongEntry>()
-    private var isShuffling = false
     private var isRepeating = false
     private var currentTempo = 1.0f
     private var currentPitch = 1.0f
-    private var shuffledSongEntries = mutableListOf<SongEntry>()
     private var currentIndex = 0
     private var mediaPlayer: MediaPlayer? = null
     private var currentDirUri: Uri? = null
     private var isUserSeeking = false
     private val handler = Handler(Looper.getMainLooper())
-    private var songAdapter: SongAdapter? = null // Custom Adapter
+    private var songAdapter: SongAdapter? = null
+    
+    // Playback list - now always shuffled (the "feature")
+    private var currentPlaybackList = mutableListOf<SongEntry>()
+    private var currentPlayingSong: SongEntry? = null
 
-    // --- Activity Result Launchers (Unchanged) ---
     private val folderPickerLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
@@ -145,14 +153,10 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-
-    // --- Lifecycle and Initialization ---
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setupCrashHandler()
-        // CRITICAL: R.layout.activity_main must exist
-        setContentView(R.layout.activity_main) 
+        setContentView(R.layout.activity_main)
 
         initViews()
         setupListeners()
@@ -164,7 +168,6 @@ class MainActivity : AppCompatActivity() {
             Log.e(TAG, "FATAL CRASH on Thread: ${thread.name}", exception)
             Handler(Looper.getMainLooper()).post {
                 val errorMsg = "FATAL CRASH: ${exception.javaClass.simpleName} - ${exception.message}"
-                // NOTE: This Toast won't show if the crash happens before Looper is ready.
                 Toast.makeText(this, errorMsg, Toast.LENGTH_LONG).show()
             }
             try {
@@ -178,7 +181,6 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun initViews() {
-        // Double-check all these IDs exist in activity_main.xml
         listView = findViewById(R.id.songList)
         playButton = findViewById(R.id.playButton)
         nextButton = findViewById(R.id.nextButton)
@@ -192,10 +194,8 @@ class MainActivity : AppCompatActivity() {
         folderButton = findViewById(R.id.folderButton)
         reloadButton = findViewById(R.id.reloadButton)
         importOszButton = findViewById(R.id.importOszButton)
-        shuffleButton = findViewById(R.id.shuffleButton)
+        shuffleButton = findViewById(R.id.shuffleButton)  // REMOVED: Will hide this
         repeatButton = findViewById(R.id.repeatButton)
-
-        // NEW UI ELEMENTS (Sorting, Filtering, Time Display, Tempo, Pitch)
         sortSpinner = findViewById(R.id.sortSpinner)
         searchEditText = findViewById(R.id.searchEditText)
         currentTimeTextView = findViewById(R.id.currentTimeTextView)
@@ -206,6 +206,12 @@ class MainActivity : AppCompatActivity() {
         pitchTextView = findViewById(R.id.pitchTextView)
         tempoResetButton = findViewById(R.id.tempoResetButton)
         pitchResetButton = findViewById(R.id.pitchResetButton)
+        nowPlayingBar = findViewById(R.id.nowPlayingBar)
+        nowPlayingText = findViewById(R.id.nowPlayingText)
+        nowPlayingClose = findViewById(R.id.nowPlayingClose)
+        
+        // HIDE shuffle button since shuffle is always on now
+        shuffleButton.visibility = View.GONE
     }
 
     private fun setupListeners() {
@@ -220,13 +226,10 @@ class MainActivity : AppCompatActivity() {
                 Toast.makeText(this, "No folder selected to reload.", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
-
             AlertDialog.Builder(this)
                 .setTitle("Reload Songs")
                 .setMessage("Rescan the entire current folder for songs?")
-                .setPositiveButton("Yes") { _, _ ->
-                    loadBeatmapSongs(uri)
-                }
+                .setPositiveButton("Yes") { _, _ -> loadBeatmapSongs(uri) }
                 .setNegativeButton("Cancel", null)
                 .show()
         }
@@ -236,26 +239,25 @@ class MainActivity : AppCompatActivity() {
                 Toast.makeText(this, "Please select the 'Songs' folder first.", Toast.LENGTH_LONG).show()
                 return@setOnClickListener
             }
-
             val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
                 addCategory(Intent.CATEGORY_OPENABLE)
                 type = "*/*"
-                putExtra(Intent.EXTRA_MIME_TYPES, arrayOf(
-                    "application/zip",
-                    "application/octet-stream",
-                    "application/x-osu-beatmap"
-                ))
+                putExtra(Intent.EXTRA_MIME_TYPES, arrayOf("application/zip", "application/octet-stream", "application/x-osu-beatmap"))
                 putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
             }
             oszPickerLauncher.launch(intent)
         }
 
-        shuffleButton.setOnClickListener { toggleShuffle() }
+        // REMOVED: shuffleButton listener
+        
         repeatButton.setOnClickListener { toggleRepeat() }
-
         playButton.setOnClickListener { togglePlayback() }
         nextButton.setOnClickListener { playNext() }
         prevButton.setOnClickListener { playPrevious() }
+
+        nowPlayingClose.setOnClickListener {
+            nowPlayingBar.visibility = View.GONE
+        }
 
         songSeekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
@@ -268,14 +270,11 @@ class MainActivity : AppCompatActivity() {
             override fun onStopTrackingTouch(seekBar: SeekBar?) { isUserSeeking = false }
         })
 
-        // UPDATED: Tempo (Speed) Seek Bar Listener
         tempoSeekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
-                // Range: 0.5x (0) to 2.5x (400)
                 val newTempo = (progress / 400.0f * 2.0f) + 0.5f
                 currentTempo = newTempo
                 tempoTextView.text = String.format(Locale.getDefault(), "%.2fx", newTempo)
-
                 if (fromUser && mediaPlayer != null) {
                     applyPlaybackParams()
                     savePlaybackSetting(TEMPO_KEY, currentTempo)
@@ -285,14 +284,11 @@ class MainActivity : AppCompatActivity() {
             override fun onStopTrackingTouch(seekBar: SeekBar?) {}
         })
 
-        // ADDED: Pitch Seek Bar Listener
         pitchSeekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
-                // Range: 0.5x (0) to 2.5x (400)
                 val newPitch = (progress / 400.0f * 2.0f) + 0.5f
                 currentPitch = newPitch
                 pitchTextView.text = String.format(Locale.getDefault(), "%.2fx", newPitch)
-
                 if (fromUser && mediaPlayer != null) {
                     applyPlaybackParams()
                     savePlaybackSetting(PITCH_KEY, currentPitch)
@@ -302,50 +298,68 @@ class MainActivity : AppCompatActivity() {
             override fun onStopTrackingTouch(seekBar: SeekBar?) {}
         })
 
-        // Tempo Reset Button - Click to reset, Long press to type value
-        tempoResetButton.setOnClickListener {
-            resetTempoToNormal()
-        }
-        
-        tempoResetButton.setOnLongClickListener {
-            showTempoInputDialog()
-            true
-        }
+        tempoResetButton.setOnClickListener { resetTempoToNormal() }
+        tempoResetButton.setOnLongClickListener { showTempoInputDialog(); true }
+        pitchResetButton.setOnClickListener { resetPitchToNormal() }
+        pitchResetButton.setOnLongClickListener { showPitchInputDialog(); true }
 
-        // Pitch Reset Button - Click to reset, Long press to type value  
-        pitchResetButton.setOnClickListener {
-            resetPitchToNormal()
-        }
-        
-        pitchResetButton.setOnLongClickListener {
-            showPitchInputDialog()
-            true
-        }
-
-        // Sort Spinner Listener (Unchanged)
         sortSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
                 val sortBy = parent?.getItemAtPosition(position).toString()
                 songAdapter?.sortSongs(sortBy)
+                updateCurrentPlaybackList()
             }
             override fun onNothingSelected(parent: AdapterView<*>?) {}
         }
 
-        // Search/Filter Text Listener (Unchanged)
         searchEditText.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
                 songAdapter?.filter?.filter(s)
+                updateCurrentPlaybackList()
             }
             override fun afterTextChanged(s: Editable?) {}
         })
 
-        // Item click listener (Unchanged)
         listView.setOnItemClickListener { _, _, position, _ ->
             val selectedSong = songAdapter?.getItem(position)
-            val indexInPlaybackList = currentPlaybackList.indexOf(selectedSong)
-            if (indexInPlaybackList != -1) {
-                playSong(indexInPlaybackList)
+            if (selectedSong != null) {
+                val indexInPlaybackList = currentPlaybackList.indexOfFirst { it.uriString == selectedSong.uriString }
+                if (indexInPlaybackList != -1) {
+                    playSong(indexInPlaybackList)
+                } else {
+                    currentPlaybackList.add(selectedSong)
+                    playSong(currentPlaybackList.size - 1)
+                }
+            }
+        }
+    }
+
+    private fun updateCurrentPlaybackList() {
+        currentPlaybackList.clear()
+        val filteredSongs = songAdapter?.getAllFilteredSongs() ?: allSongEntries
+        currentPlaybackList.addAll(filteredSongs)
+        
+        // FEATURE: Always shuffle the playback list for that chaotic randomness!
+        currentPlaybackList.shuffle()
+        
+        Log.d(TAG, "Playback list updated and shuffled. Size: ${currentPlaybackList.size}")
+        
+        // Update current index if a song is playing
+        currentPlayingSong?.let { playingSong ->
+            val newIndex = currentPlaybackList.indexOfFirst { it.uriString == playingSong.uriString }
+            if (newIndex != -1) {
+                currentIndex = newIndex
+                Log.d(TAG, "Updated current index to $currentIndex for playing song")
+            } else {
+                // Song no longer in filtered list, stop playback
+                Log.d(TAG, "Playing song no longer in filtered list, stopping playback")
+                mediaPlayer?.release()
+                mediaPlayer = null
+                playButton.text = "▶"
+                nowPlayingBar.visibility = View.GONE
+                currentPlayingSong = null
+                songAdapter?.setCurrentlyPlaying(null)
             }
         }
     }
@@ -355,10 +369,7 @@ class MainActivity : AppCompatActivity() {
         tempoTextView.text = String.format(Locale.getDefault(), "%.2fx", currentTempo)
         val tempoProgress = ((currentTempo - 0.5f) / 2.0f * 400.0f).toInt().coerceIn(0, 400)
         tempoSeekBar.progress = tempoProgress
-        
-        if (mediaPlayer != null) {
-            applyPlaybackParams()
-        }
+        if (mediaPlayer != null) applyPlaybackParams()
         savePlaybackSetting(TEMPO_KEY, currentTempo)
         Toast.makeText(this, "Tempo reset to 1.00x", Toast.LENGTH_SHORT).show()
     }
@@ -368,10 +379,7 @@ class MainActivity : AppCompatActivity() {
         pitchTextView.text = String.format(Locale.getDefault(), "%.2fx", currentPitch)
         val pitchProgress = ((currentPitch - 0.5f) / 2.0f * 400.0f).toInt().coerceIn(0, 400)
         pitchSeekBar.progress = pitchProgress
-        
-        if (mediaPlayer != null) {
-            applyPlaybackParams()
-        }
+        if (mediaPlayer != null) applyPlaybackParams()
         savePlaybackSetting(PITCH_KEY, currentPitch)
         Toast.makeText(this, "Pitch reset to 1.00x", Toast.LENGTH_SHORT).show()
     }
@@ -380,7 +388,6 @@ class MainActivity : AppCompatActivity() {
         val input = EditText(this)
         input.inputType = android.text.InputType.TYPE_CLASS_NUMBER or android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL
         input.setText(String.format(Locale.getDefault(), "%.2f", currentTempo))
-        
         AlertDialog.Builder(this)
             .setTitle("Set Tempo")
             .setMessage("Enter tempo value (0.50 - 2.50):")
@@ -393,10 +400,7 @@ class MainActivity : AppCompatActivity() {
                     tempoTextView.text = String.format(Locale.getDefault(), "%.2fx", newTempo)
                     val tempoProgress = ((newTempo - 0.5f) / 2.0f * 400.0f).toInt().coerceIn(0, 400)
                     tempoSeekBar.progress = tempoProgress
-                    
-                    if (mediaPlayer != null) {
-                        applyPlaybackParams()
-                    }
+                    if (mediaPlayer != null) applyPlaybackParams()
                     savePlaybackSetting(TEMPO_KEY, currentTempo)
                     Toast.makeText(this, "Tempo set to ${String.format(Locale.getDefault(), "%.2fx", newTempo)}", Toast.LENGTH_SHORT).show()
                 } catch (e: NumberFormatException) {
@@ -411,7 +415,6 @@ class MainActivity : AppCompatActivity() {
         val input = EditText(this)
         input.inputType = android.text.InputType.TYPE_CLASS_NUMBER or android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL
         input.setText(String.format(Locale.getDefault(), "%.2f", currentPitch))
-        
         AlertDialog.Builder(this)
             .setTitle("Set Pitch")
             .setMessage("Enter pitch value (0.50 - 2.50):")
@@ -424,10 +427,7 @@ class MainActivity : AppCompatActivity() {
                     pitchTextView.text = String.format(Locale.getDefault(), "%.2fx", newPitch)
                     val pitchProgress = ((newPitch - 0.5f) / 2.0f * 400.0f).toInt().coerceIn(0, 400)
                     pitchSeekBar.progress = pitchProgress
-                    
-                    if (mediaPlayer != null) {
-                        applyPlaybackParams()
-                    }
+                    if (mediaPlayer != null) applyPlaybackParams()
                     savePlaybackSetting(PITCH_KEY, currentPitch)
                     Toast.makeText(this, "Pitch set to ${String.format(Locale.getDefault(), "%.2fx", newPitch)}", Toast.LENGTH_SHORT).show()
                 } catch (e: NumberFormatException) {
@@ -439,9 +439,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun loadInitialData() {
-        val savedUriString = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
-            .getString(SAVED_URI_KEY, null)
-
+        val savedUriString = getSharedPreferences(PREFS_NAME, MODE_PRIVATE).getString(SAVED_URI_KEY, null)
         if (savedUriString != null) {
             try {
                 val uri = Uri.parse(savedUriString)
@@ -453,45 +451,30 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        // Set initial states for shuffle and repeat
-        shuffleButton.text = "🔀 Off"
-        isShuffling = false
-        shuffledSongEntries.clear()
-
+        // REMOVED: shuffle button initialization
         repeatButton.text = "🔁 Off"
         isRepeating = false
 
-        // Load and set saved playback settings
         currentTempo = loadPlaybackSetting(TEMPO_KEY)
-        currentPitch = loadPlaybackSetting(PITCH_KEY) // ADDED
+        currentPitch = loadPlaybackSetting(PITCH_KEY)
 
-        // Set Tempo UI
         tempoTextView.text = String.format(Locale.getDefault(), "%.2fx", currentTempo)
-        // Convert speed (0.5 to 2.5) back to Seekbar progress (0 to 400)
         val tempoProgress = ((currentTempo - 0.5f) / 2.0f * 400.0f).toInt().coerceIn(0, 400)
         tempoSeekBar.progress = tempoProgress
 
-        // Set Pitch UI
         pitchTextView.text = String.format(Locale.getDefault(), "%.2fx", currentPitch)
         val pitchProgress = ((currentPitch - 0.5f) / 2.0f * 400.0f).toInt().coerceIn(0, 400)
         pitchSeekBar.progress = pitchProgress
     }
 
-    // Helper function for persistence (UPDATED)
     private fun loadPlaybackSetting(key: String): Float {
-        return getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
-            .getFloat(key, 1.0f)
+        return getSharedPreferences(PREFS_NAME, MODE_PRIVATE).getFloat(key, 1.0f)
     }
 
-    // Helper function for persistence (UPDATED)
     private fun savePlaybackSetting(key: String, value: Float) {
-        getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
-            .edit()
-            .putFloat(key, value)
-            .apply()
+        getSharedPreferences(PREFS_NAME, MODE_PRIVATE).edit().putFloat(key, value).apply()
     }
 
-    // Non-suspending wrapper to start the coroutine (Unchanged)
     private fun loadBeatmapSongs(uri: Uri) = lifecycleScope.launch(Dispatchers.Main) {
         setLoading(true)
         val songs = withContext(Dispatchers.IO) {
@@ -529,13 +512,9 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun saveFolderUri(uri: Uri) {
-        getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
-            .edit()
-            .putString(SAVED_URI_KEY, uri.toString())
-            .apply()
+        getSharedPreferences(PREFS_NAME, MODE_PRIVATE).edit().putString(SAVED_URI_KEY, uri.toString()).apply()
     }
 
-    // --- Time Formatting Utility (Unchanged) ---
     private fun formatTime(ms: Int): String {
         val totalSeconds = ms / 1000
         val minutes = totalSeconds / 60
@@ -543,53 +522,8 @@ class MainActivity : AppCompatActivity() {
         return String.format(Locale.getDefault(), "%d:%02d", minutes, seconds)
     }
 
-    // --- Helper for Playback List (Unchanged) ---
-    private val currentPlaybackList: List<SongEntry>
-        get() = if (isShuffling) shuffledSongEntries else allSongEntries
+    // REMOVED: toggleShuffle function entirely
 
-    // --- Shuffle Logic (Unchanged) ---
-    private fun toggleShuffle() {
-        if (allSongEntries.isEmpty()) {
-            Toast.makeText(this, "Song list is empty.", Toast.LENGTH_SHORT).show()
-            return
-        }
-
-        isShuffling = !isShuffling
-
-        val currentlyPlayingSong = currentPlaybackList.getOrNull(currentIndex)
-
-        if (isShuffling) {
-            // 1. Create shuffled list (copy and shuffle)
-            shuffledSongEntries = allSongEntries.toMutableList().apply { shuffle() }
-
-            // 2. Update currentIndex to the position in the new shuffled list
-            if (currentlyPlayingSong != null) {
-                val newIndex = shuffledSongEntries.indexOf(currentlyPlayingSong)
-                if (newIndex != -1) currentIndex = newIndex else currentIndex = 0
-            } else {
-                currentIndex = 0
-            }
-
-            shuffleButton.text = "🔀 On"
-            Toast.makeText(this, "Shuffle ON.", Toast.LENGTH_SHORT).show()
-            Log.d(TAG, "Shuffle mode ON. New current index: $currentIndex")
-        } else {
-            // 1. Update currentIndex to the position in the original list
-            if (currentlyPlayingSong != null) {
-                val newIndex = allSongEntries.indexOf(currentlyPlayingSong)
-                if (newIndex != -1) currentIndex = newIndex else currentIndex = 0
-            } else {
-                currentIndex = 0
-            }
-
-            shuffledSongEntries.clear()
-            shuffleButton.text = "🔀 Off"
-            Toast.makeText(this, "Shuffle OFF.", Toast.LENGTH_SHORT).show()
-            Log.d(TAG, "Shuffle mode OFF. New current index: $currentIndex")
-        }
-    }
-
-    // --- Repeat Logic (Unchanged) ---
     private fun toggleRepeat() {
         isRepeating = !isRepeating
         if (isRepeating) {
@@ -601,23 +535,15 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // --- Speed/Pitch Logic (UPDATED FOR SEPARATE CONTROL) ---
     private fun applyPlaybackParams() {
-        // PlaybackParams is available from API 23 (Marshmallow)
         if (mediaPlayer != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             try {
                 val params = mediaPlayer!!.playbackParams
-
-                // Use currentTempo for speed (rate)
                 params.speed = currentTempo
-
-                // Use currentPitch for pitch
                 params.pitch = currentPitch
-
                 mediaPlayer!!.playbackParams = params
-
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to set PlaybackParams. Required API 23. Current API ${Build.VERSION.SDK_INT}", e)
+                Log.e(TAG, "Failed to set PlaybackParams.", e)
                 Toast.makeText(this, "Speed/Pitch control unavailable or failed.", Toast.LENGTH_SHORT).show()
             }
         } else if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
@@ -625,10 +551,8 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // --- Media Playback & Control (Unchanged logic, minor param call update) ---
-
     private fun togglePlayback() {
-        if (allSongEntries.isEmpty()) {
+        if (currentPlaybackList.isEmpty()) {
             Toast.makeText(this, "Song list is empty.", Toast.LENGTH_SHORT).show()
             return
         }
@@ -642,36 +566,28 @@ class MainActivity : AppCompatActivity() {
                     playButton.text = "▶"
                 } else {
                     mediaPlayer!!.start()
-                    applyPlaybackParams() // Re-apply params on resume
+                    applyPlaybackParams()
                     playButton.text = "⏸"
                 }
             } catch (e: IllegalStateException) {
-                Log.e(TAG, "IllegalStateException during togglePlayback. Player in bad state.", e)
+                Log.e(TAG, "IllegalStateException during togglePlayback.", e)
                 Toast.makeText(this, "Playback error, trying to restart song.", Toast.LENGTH_SHORT).show()
                 playSong(currentIndex)
             }
         }
     }
 
-    // Runnable to update the seek bar and time display (Unchanged)
     private val updateSeekBar = object : Runnable {
         override fun run() {
             if (mediaPlayer != null && !isUserSeeking) {
                 try {
                     val currentPos = mediaPlayer!!.currentPosition
                     val totalDuration = mediaPlayer!!.duration
-
-                    // Update SeekBar
                     songSeekBar.progress = currentPos
-
-                    // Update time display TextViews
                     currentTimeTextView.text = formatTime(currentPos)
-
-                    // Total time is set on preparation, but update here just in case of race condition
                     if (totalDuration > 0 && totalTimeTextView.text == "0:00") {
                         totalTimeTextView.text = formatTime(totalDuration)
                     }
-
                 } catch (e: IllegalStateException) {
                     Log.w(TAG, "Ignoring IllegalStateException during seekBar update.")
                 }
@@ -681,12 +597,18 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun playSong(index: Int) {
+        // FEATURE: Always use the shuffled playback list!
         val playbackList = currentPlaybackList
-        if (playbackList.isEmpty() || index < 0 || index >= playbackList.size) return
+        if (playbackList.isEmpty() || index < 0 || index >= playbackList.size) {
+            Log.e(TAG, "Invalid play index: $index, list size: ${playbackList.size}")
+            return
+        }
 
         currentIndex = index
         val songEntry = playbackList[index]
-        val songUri = Uri.parse(songEntry.uriString)
+        currentPlayingSong = songEntry
+
+        Log.d(TAG, "Playing song at index $index: ${songEntry.label}")
 
         try {
             mediaPlayer?.release()
@@ -702,7 +624,7 @@ class MainActivity : AppCompatActivity() {
         mediaPlayer = MediaPlayer()
 
         try {
-            contentResolver.openAssetFileDescriptor(songUri, "r")?.use { descriptor ->
+            contentResolver.openAssetFileDescriptor(Uri.parse(songEntry.uriString), "r")?.use { descriptor ->
                 mediaPlayer!!.setDataSource(descriptor.fileDescriptor, descriptor.startOffset, descriptor.length)
             } ?: run {
                 Toast.makeText(this, "Failed to load descriptor for: ${songEntry.label}", Toast.LENGTH_LONG).show()
@@ -711,11 +633,15 @@ class MainActivity : AppCompatActivity() {
             }
 
             mediaPlayer!!.setOnPreparedListener {
-                // APPLY SPEED/PITCH HERE
                 applyPlaybackParams()
-
                 it.start()
                 playButton.text = "⏸"
+                
+                // Show now playing bar and highlight song
+                nowPlayingText.text = "Now Playing: ${songEntry.label}"
+                nowPlayingBar.visibility = View.VISIBLE
+                songAdapter?.setCurrentlyPlaying(songEntry)
+                
                 Toast.makeText(this, "Playing: ${songEntry.label}", Toast.LENGTH_SHORT).show()
                 Log.d(TAG, "Playing: ${songEntry.label}")
 
@@ -742,7 +668,6 @@ class MainActivity : AppCompatActivity() {
                 }
             }
             mediaPlayer!!.prepareAsync()
-
             playButton.text = "⏳"
 
         } catch (e: Exception) {
@@ -755,23 +680,33 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun playNext() {
+        // FEATURE: Always use the shuffled playback list!
         val playbackList = currentPlaybackList
-        if (playbackList.isEmpty()) return
-        currentIndex = (currentIndex + 1) % playbackList.size
-        playSong(currentIndex)
+        if (playbackList.isEmpty()) {
+            Log.d(TAG, "Playback list is empty, cannot play next")
+            return
+        }
+        
+        val nextIndex = (currentIndex + 1) % playbackList.size
+        Log.d(TAG, "Playing next song. Current: $currentIndex, Next: $nextIndex, List size: ${playbackList.size}")
+        playSong(nextIndex)
     }
 
     private fun playPrevious() {
+        // FEATURE: Always use the shuffled playback list!
         val playbackList = currentPlaybackList
-        if (playbackList.isEmpty()) return
-        currentIndex = if (currentIndex - 1 < 0) playbackList.size - 1 else currentIndex - 1
-        playSong(currentIndex)
+        if (playbackList.isEmpty()) {
+            Log.d(TAG, "Playback list is empty, cannot play previous")
+            return
+        }
+        
+        val prevIndex = if (currentIndex - 1 < 0) playbackList.size - 1 else currentIndex - 1
+        Log.d(TAG, "Playing previous song. Current: $currentIndex, Previous: $prevIndex, List size: ${playbackList.size}")
+        playSong(prevIndex)
     }
 
-    // --- OSZ Import Logic (Unchanged) ---
-
+    // OPTIMIZED: Faster OSZ import with parallel extraction
     private fun importOszFiles(oszUris: List<Uri>, targetDirUri: Uri) {
-        // ... (Unchanged logic) ...
         var successfulImports = 0
         var failedImports = 0
 
@@ -789,12 +724,15 @@ class MainActivity : AppCompatActivity() {
 
             val newlyCreatedFolders = mutableListOf<DocumentFile>()
 
-            for ((index, oszUri) in oszUris.withIndex()) {
-                val newFolder = withContext(Dispatchers.IO) {
+            // Process OSZ files in parallel for faster import
+            val importJobs = oszUris.map { oszUri ->
+                async(Dispatchers.IO) {
                     performOszExtraction(oszUri, targetDir)
                 }
+            }
 
-                // Update UI on main thread
+            importJobs.forEachIndexed { index, deferred ->
+                val newFolder = deferred.await()
                 withContext(Dispatchers.Main) {
                     loadingText.text = "Importing ${index + 1}/${oszUris.size} files..."
                 }
@@ -802,14 +740,12 @@ class MainActivity : AppCompatActivity() {
                 if (newFolder != null) {
                     successfulImports++
                     newlyCreatedFolders.add(newFolder)
-
-                    // Delete the source OSZ file after successful extraction
+                    // Delete source OSZ file
                     withContext(Dispatchers.IO) {
                         try {
-                            DocumentFile.fromSingleUri(this@MainActivity, oszUri)?.delete()
-                            Log.d(TAG, "Successfully deleted source OSZ file: ${oszUri.lastPathSegment}")
+                            DocumentFile.fromSingleUri(this@MainActivity, oszUris[index])?.delete()
                         } catch (e: Exception) {
-                            Log.e(TAG, "Failed to delete source OSZ file: ${oszUri.lastPathSegment}", e)
+                            Log.e(TAG, "Failed to delete source OSZ file", e)
                         }
                     }
                 } else {
@@ -817,25 +753,21 @@ class MainActivity : AppCompatActivity() {
                 }
             }
 
-            // Scan only the newly created folders and append songs
+            // Scan newly created folders in parallel using coroutines
             val newSongs = withContext(Dispatchers.IO) {
-                newlyCreatedFolders.flatMap { folder ->
-                    processBeatmapFolder(folder)
-                }
+                newlyCreatedFolders.map { folder ->
+                    async { processBeatmapFolder(folder) }
+                }.awaitAll().flatten()
             }
 
             hideLoading()
 
-            val message: String
             if (newSongs.isNotEmpty()) {
                 allSongEntries.addAll(newSongs)
-                message = "Import complete: $successfulImports successful. Added ${newSongs.size} new songs."
-                refreshListView(message)
+                refreshListView("Import complete: $successfulImports successful. Added ${newSongs.size} new songs.")
             } else {
-                 message = "Import complete: $successfulImports successful, $failedImports failed. No new playable songs found."
-                 Toast.makeText(this@MainActivity, message, Toast.LENGTH_LONG).show()
+                Toast.makeText(this@MainActivity, "Import complete: $successfulImports successful, $failedImports failed. No new playable songs found.", Toast.LENGTH_LONG).show()
             }
-            Log.d(TAG, message)
         }
     }
 
@@ -846,19 +778,15 @@ class MainActivity : AppCompatActivity() {
         return@withContext try {
             contentResolver.openInputStream(oszUri)?.use { inputStream ->
                 ZipInputStream(inputStream).use { zipStream ->
-                    val newFolder = targetDir.createDirectory(folderName)
-                        ?: throw IOException("Failed to create folder: $folderName. Maybe it already exists?")
+                    val newFolder = targetDir.createDirectory(folderName) ?: return@withContext null
 
                     var entry = zipStream.nextEntry
                     while (entry != null) {
                         if (!entry.isDirectory) {
-                            val fileName = entry.name.substringAfterLast(File.separator)
+                            val fileName = entry.name.substringAfterLast('/')
                             if (fileName.isNotEmpty()) {
-                                // Use application/octet-stream for general file type
                                 val file = newFolder.createFile("application/octet-stream", fileName)
-                                    ?: throw IOException("Failed to create file: $fileName")
-
-                                contentResolver.openOutputStream(file.uri)?.use { outputStream ->
+                                contentResolver.openOutputStream(file?.uri ?: continue)?.use { outputStream ->
                                     zipStream.copyTo(outputStream)
                                 }
                             }
@@ -866,12 +794,11 @@ class MainActivity : AppCompatActivity() {
                         zipStream.closeEntry()
                         entry = zipStream.nextEntry
                     }
-                    Log.d(TAG, "Successfully extracted $oszFileName into folder ${newFolder.name}")
                     newFolder
                 }
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to extract OSZ file: $oszFileName. Error: ${e.message}", e)
+            Log.e(TAG, "Failed to extract OSZ file: $oszFileName", e)
             null
         }
     }
@@ -884,47 +811,44 @@ class MainActivity : AppCompatActivity() {
         folderCountLabel.visibility = View.GONE
     }
 
-    // --- Beatmap Folder Processing Logic (Unchanged) ---
-
+    // OPTIMIZED: Faster folder processing with parallel execution
     private suspend fun processBeatmapFolder(folder: DocumentFile): List<SongEntry> = withContext(Dispatchers.IO) {
-        val entries = mutableListOf<SongEntry>()
         val osuFiles = folder.listFiles()?.filter { it.name?.endsWith(".osu") == true } ?: return@withContext emptyList()
 
-        // Use async/await to process multiple .osu files in parallel within the folder
+        // Process .osu files in parallel
         val deferredMetadata = osuFiles.map { file ->
             async { parseOsuFile(file) }
         }
         val metadataList = deferredMetadata.awaitAll().filterNotNull()
 
-
+        val entries = mutableListOf<SongEntry>()
         metadataList
             .groupBy { it.audioFilename }
-            .forEach { (_, beatmaps) ->
+            .forEach { (audioFilename, beatmaps) ->
                 val metadata = beatmaps.first()
                 val audioFile = folder.listFiles()?.find {
-                    it.name?.equals(metadata.audioFilename, ignoreCase = true) == true
+                    it.name?.equals(audioFilename, ignoreCase = true) == true
                 }
                 if (audioFile != null && audioFile.isFile) {
-                    // Determine the label based on version count
                     val label = if (beatmaps.size > 1) {
                         "${metadata.artist} - ${metadata.title} (${beatmaps.size} versions)"
                     } else {
                         "${metadata.artist} - ${metadata.title}"
                     }
-                    entries.add(SongEntry(label, audioFile.uri.toString(), metadata.artist, metadata.title))
+                    
+                    // NEW: Include BPM in the song entry
+                    entries.add(SongEntry(label, audioFile.uri.toString(), metadata.artist, metadata.title, metadata.bpm))
                 }
             }
         entries
     }
 
     private fun handlePermissionLoss(uri: Uri) {
-        Log.w(TAG, "Permission for $uri lost. Asking user to re-select folder.")
-
+        Log.w(TAG, "Permission for $uri lost.")
         getSharedPreferences(PREFS_NAME, MODE_PRIVATE).edit().remove(SAVED_URI_KEY).apply()
         currentDirUri = null
         allSongEntries.clear()
         songAdapter?.notifyDataSetChanged()
-
         AlertDialog.Builder(this)
             .setTitle("Storage Access Required")
             .setMessage("Access to the previously selected 'Songs' folder has been lost. You must re-select the folder to grant permanent access again.")
@@ -936,47 +860,49 @@ class MainActivity : AppCompatActivity() {
             .show()
     }
 
+    // OPTIMIZED: Faster directory scanning with parallel folder processing
     private suspend fun scanDirectoryForSongs(uri: Uri): List<SongEntry>? = withContext(Dispatchers.IO) {
-        // Ensure we have access to the directory
         try {
             if (contentResolver.persistedUriPermissions.none { it.uri == uri }) {
-                 // Permission may have been revoked externally
-                 return@withContext null
+                return@withContext null
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error checking URI permissions.", e)
             return@withContext null
         }
 
-        val pickedDir = DocumentFile.fromTreeUri(this@MainActivity, uri)
-        if (pickedDir == null || !pickedDir.isDirectory) return@withContext null
-
-        val entries = mutableListOf<SongEntry>()
-        // Filter out files that aren't directories, like the songs.json file
+        val pickedDir = DocumentFile.fromTreeUri(this@MainActivity, uri) ?: return@withContext null
         val allFolders = pickedDir.listFiles().filter { it.isDirectory }
         val total = allFolders.size
+        val progressCounter = AtomicInteger(0)
 
-        for ((i, folder) in allFolders.withIndex()) {
-            val folderEntries = processBeatmapFolder(folder)
-            entries.addAll(folderEntries)
-
-            // Update UI frequently
-            withContext(Dispatchers.Main) {
-                // Keep progress bar and counter up to date
-                scanProgressBar.progress = if (total > 0) ((i + 1) * 100 / total) else 0
-                folderCountLabel.text = "Scanned ${i + 1} of $total folders"
+        // Process folders in parallel for much faster scanning
+        val folderResults = allFolders.map { folder ->
+            async { 
+                val folderEntries = processBeatmapFolder(folder)
+                val currentProgress = progressCounter.incrementAndGet()
+                
+                // Update progress on main thread (but less frequently for performance)
+                if (currentProgress % 5 == 0 || currentProgress == total) {
+                    withContext(Dispatchers.Main) {
+                        scanProgressBar.progress = if (total > 0) (currentProgress * 100 / total) else 0
+                        folderCountLabel.text = "Scanned $currentProgress of $total folders"
+                    }
+                }
+                folderEntries
             }
-        }
+        }.awaitAll().flatten()
 
         withContext(Dispatchers.Main) {
             scanningStatus.text = "Finalizing song list..."
         }
-        entries
+        
+        folderResults
     }
 
     /**
-     * OPTIMIZATION: Reads the .osu file only until all necessary metadata (Audio, Artist, Title)
-     * is found, then stops reading and closes the stream immediately.
+     * Enhanced .osu file parser that extracts metadata AND BPM
+     * Now uses the most frequent BPM (mode) instead of average
      */
     private fun parseOsuFile(file: DocumentFile): OsuMetadata? {
         return try {
@@ -985,23 +911,67 @@ class MainActivity : AppCompatActivity() {
                 var audioFilename: String? = null
                 var artist: String? = null
                 var title: String? = null
+                val bpms = mutableListOf<Double>()
+                var inTimingSection = false
                 var line: String?
 
-                // Stop reading if all three required fields are found
-                while (audioFilename == null || artist == null || title == null) {
-                    line = reader.readLine() ?: break
-
+                while (reader.readLine().also { line = it } != null) {
                     when {
-                        line.startsWith("AudioFilename:") -> audioFilename = line.substringAfter(":").trim()
-                        line.startsWith("Artist:") -> artist = line.substringAfter(":").trim()
-                        line.startsWith("Title:") -> title = line.substringAfter(":").trim()
+                        line == "[TimingPoints]" -> {
+                            inTimingSection = true
+                            continue
+                        }
+                        line?.startsWith("[") == true && line != "[TimingPoints]" -> {
+                            inTimingSection = false
+                        }
+                        line?.startsWith("AudioFilename:") == true -> {
+                            audioFilename = line?.substringAfter(":")?.trim()
+                        }
+                        line?.startsWith("Artist:") == true -> {
+                            artist = line?.substringAfter(":")?.trim()
+                        }
+                        line?.startsWith("Title:") == true -> {
+                            title = line?.substringAfter(":")?.trim()
+                        }
+                        inTimingSection -> {
+                            val timingParts = line?.split(",")
+                            if (timingParts != null && timingParts.size >= 8) {
+                                try {
+                                    val beatLength = timingParts[1].toDouble()
+                                    val uninherited = timingParts[6].toInt() == 1
+                                    
+                                    // Only consider uninherited timing points (main BPM changes)
+                                    if (uninherited && beatLength > 0) {
+                                        val calculatedBpm = 60000.0 / beatLength
+                                        bpms.add(calculatedBpm)
+                                        Log.d(TAG, "Found BPM: $calculatedBpm in ${file.name}")
+                                    }
+                                } catch (e: NumberFormatException) {
+                                    // Ignore malformed timing points
+                                }
+                            }
+                        }
+                    }
+
+                    // Stop reading early if we have all required metadata
+                    if (audioFilename != null && artist != null && title != null) {
+                        // Continue reading timing points even after we have basic metadata
+                        if (!inTimingSection && bpms.isNotEmpty()) {
+                            break
+                        }
                     }
                 }
 
                 if (audioFilename != null && artist != null && title != null) {
-                    OsuMetadata(audioFilename, artist, title)
+                    // NEW: Calculate the most frequent BPM (mode) instead of average
+                    val bpm = if (bpms.isNotEmpty()) {
+                        findMostFrequentBpm(bpms)
+                    } else {
+                        null
+                    }
+                    
+                    OsuMetadata(audioFilename, artist, title, bpm)
                 } else null
-
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error parsing .osu file: ${file.name}", e)
@@ -1009,24 +979,66 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // --- Custom Adapter for Sorting and Filtering (Unchanged) ---
+    /**
+     * NEW: Finds the most frequent BPM value (mode) from a list of BPMs
+     * Groups similar BPM values together to account for slight variations
+     */
+    private fun findMostFrequentBpm(bpms: List<Double>): Double {
+        if (bpms.isEmpty()) return 0.0
+        if (bpms.size == 1) return bpms.first()
+
+        // Group similar BPM values (within ±1 BPM tolerance)
+        val groupedBpms = mutableMapOf<Double, Int>()
+        
+        for (bpm in bpms) {
+            // Round to nearest integer for grouping
+            val roundedBpm = bpm.roundToNearestInteger()
+            
+            // Count occurrences of this rounded BPM
+            groupedBpms[roundedBpm] = groupedBpms.getOrDefault(roundedBpm, 0) + 1
+        }
+        
+        // Find the BPM with the highest count
+        val mostFrequent = groupedBpms.maxByOrNull { it.value }?.key ?: bpms.first()
+        
+        Log.d(TAG, "BPM analysis: Most frequent = $mostFrequent from ${bpms.size} timing points")
+        Log.d(TAG, "BPM distribution: $groupedBpms")
+        
+        return mostFrequent
+    }
+
+    /**
+     * Helper function to round BPM to nearest integer
+     */
+    private fun Double.roundToNearestInteger(): Double {
+        return Math.round(this).toDouble()
+    }
+
+    // UPDATED: SongAdapter with BPM display and BPM search
     private class SongAdapter(
         context: Context,
         songs: List<SongEntry>,
         private val searchEditText: EditText
-    ) :
-        ArrayAdapter<SongEntry>(context, 0, songs.toMutableList()), Filterable {
+    ) : ArrayAdapter<SongEntry>(context, 0, songs.toMutableList()), Filterable {
 
         private var allSongs: List<SongEntry> = songs
         private var currentFilteredSongs: List<SongEntry> = songs.toMutableList()
+        private var currentlyPlaying: SongEntry? = null
         private val layoutInflater = LayoutInflater.from(context)
 
         override fun getCount(): Int = currentFilteredSongs.size
         override fun getItem(position: Int): SongEntry? = currentFilteredSongs[position]
+        
+        fun getAllSongs(): List<SongEntry> = allSongs
+        fun getAllFilteredSongs(): List<SongEntry> = currentFilteredSongs
+
+        fun setCurrentlyPlaying(song: SongEntry?) {
+            currentlyPlaying = song
+            notifyDataSetChanged()
+        }
 
         override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
             val song = getItem(position)
-
             val view = convertView ?: layoutInflater.inflate(R.layout.list_item_song, parent, false)
 
             val titleTextView = view.findViewById<TextView>(R.id.textTitle)
@@ -1034,7 +1046,25 @@ class MainActivity : AppCompatActivity() {
 
             if (song != null) {
                 titleTextView.text = song.title
-                artistTextView.text = song.artist
+                
+                // NEW: Display BPM if available
+                val bpmText = if (song.bpm != null) {
+                    " (${String.format(Locale.getDefault(), "%.0f", song.bpm)} BPM)"
+                } else {
+                    ""
+                }
+                artistTextView.text = "${song.artist}$bpmText"
+                
+                // Highlight currently playing song
+                if (song == currentlyPlaying) {
+                    view.setBackgroundColor(0xFF45475A.toInt())
+                    titleTextView.setTextColor(0xFFCBA6F7.toInt())
+                    artistTextView.setTextColor(0xFFCBA6F7.toInt())
+                } else {
+                    view.setBackgroundColor(0x0024273A)
+                    titleTextView.setTextColor(0xFFBAC2DE.toInt())
+                    artistTextView.setTextColor(0xFFBAC2DE.toInt())
+                }
             }
 
             return view
@@ -1045,13 +1075,34 @@ class MainActivity : AppCompatActivity() {
                 override fun performFiltering(constraint: CharSequence?): FilterResults {
                     val results = FilterResults()
                     val query = constraint.toString().toLowerCase(Locale.getDefault()).trim()
-
                     val filteredList = if (query.isEmpty()) {
                         allSongs
                     } else {
-                        allSongs.filter {
-                            it.title.toLowerCase(Locale.getDefault()).contains(query) ||
-                            it.artist.toLowerCase(Locale.getDefault()).contains(query)
+                        allSongs.filter { song ->
+                            // Search in title and artist as before
+                            val matchesText = song.title.toLowerCase(Locale.getDefault()).contains(query) ||
+                                            song.artist.toLowerCase(Locale.getDefault()).contains(query)
+                            
+                            // NEW: Also search by BPM
+                            val matchesBpm = if (song.bpm != null) {
+                                // Try to parse the query as a number for BPM search
+                                try {
+                                    val bpmQuery = query.toDoubleOrNull()
+                                    if (bpmQuery != null) {
+                                        // Allow approximate BPM matching (within ±5 BPM)
+                                        val bpmTolerance = 5.0
+                                        song.bpm in (bpmQuery - bpmTolerance)..(bpmQuery + bpmTolerance)
+                                    } else {
+                                        false
+                                    }
+                                } catch (e: NumberFormatException) {
+                                    false
+                                }
+                            } else {
+                                false
+                            }
+                            
+                            matchesText || matchesBpm
                         }
                     }
                     results.values = filteredList
@@ -1068,41 +1119,35 @@ class MainActivity : AppCompatActivity() {
         }
 
         fun sortSongs(sortBy: String) {
-            val sortedList = when (sortBy) {
+            allSongs = when (sortBy) {
                 "Title" -> allSongs.sortedBy { it.title.toLowerCase(Locale.getDefault()) }
                 "Artist" -> allSongs.sortedBy { it.artist.toLowerCase(Locale.getDefault()) }
                 "Versions" -> allSongs.sortedByDescending { it.label.count { c -> c == '(' } }
+                "BPM" -> allSongs.sortedBy { it.bpm ?: 0.0 }  // NEW: BPM sorting
                 else -> allSongs
             }
-            allSongs = sortedList
             filter.filter(searchEditText.text?.toString())
         }
     }
 
-
-    // Simplified UI update and save function (Unchanged)
     private fun refreshListView(logMessage: String) {
         saveSongsToFile()
-
         songAdapter = SongAdapter(this, allSongEntries, searchEditText)
         listView.adapter = songAdapter
-
+        updateCurrentPlaybackList()
+        
         val currentSortOption = sortSpinner.selectedItem?.toString() ?: "Title"
         songAdapter?.sortSongs(currentSortOption)
-
         songAdapter?.filter?.filter("")
 
         Toast.makeText(this, logMessage, Toast.LENGTH_SHORT).show()
         Log.d(TAG, logMessage)
     }
 
-    // --- Data Persistence (Unchanged) ---
-
     private fun saveSongsToFile() = lifecycleScope.launch(Dispatchers.IO) {
         try {
             val json = Json.encodeToString(allSongEntries)
-            val file = File(filesDir, SONGS_FILE_NAME)
-            file.writeText(json)
+            File(filesDir, SONGS_FILE_NAME).writeText(json)
             Log.d(TAG, "Saved ${allSongEntries.size} songs to internal file")
         } catch (e: Exception) {
             Log.e(TAG, "Error saving songs to file.", e)
@@ -1114,24 +1159,19 @@ class MainActivity : AppCompatActivity() {
             try {
                 val file = File(filesDir, SONGS_FILE_NAME)
                 if (!file.exists()) return@withContext null
-
                 val json = file.readText()
                 val entries = Json.decodeFromString<List<SongEntry>>(json)
-
                 entries.filter {
                     try {
                         DocumentFile.fromSingleUri(this@MainActivity, Uri.parse(it.uriString))?.exists() == true
                     } catch (e: Exception) {
-                        Log.w(TAG, "Invalid URI found during load: ${it.uriString}", e)
                         false
                     }
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Error loading/parsing songs from file during startup.", e)
                 null
             }
         }
-
         if (savedEntries != null) {
             allSongEntries.clear()
             allSongEntries.addAll(savedEntries)
@@ -1139,14 +1179,10 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // --- Cleanup ---
-
     override fun onDestroy() {
         super.onDestroy()
-        // Save the current tempo and pitch when the app is destroyed
         savePlaybackSetting(TEMPO_KEY, currentTempo)
         savePlaybackSetting(PITCH_KEY, currentPitch)
-
         handler.removeCallbacks(updateSeekBar)
         mediaPlayer?.release()
         mediaPlayer = null

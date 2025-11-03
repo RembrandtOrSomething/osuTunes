@@ -204,6 +204,16 @@
             android:progressTint="#CBA6F7"
             android:thumbTint="#CBA6F7"/>
 
+        <Button
+            android:id="@+id/tempoResetButton"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:text="1x"
+            android:textSize="10sp"
+            android:layout_marginStart="8dp"
+            android:backgroundTint="#CBA6F7"
+            android:longClickable="true"/>
+
     </LinearLayout>
     <LinearLayout
         android:layout_width="match_parent"
@@ -240,6 +250,16 @@
             android:progress="100"
             android:progressTint="#F38BA8"
             android:thumbTint="#F38BA8"/>
+
+        <Button
+            android:id="@+id/pitchResetButton"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:text="1x"
+            android:textSize="10sp"
+            android:layout_marginStart="8dp"
+            android:backgroundTint="#F38BA8"
+            android:longClickable="true"/>
 
     </LinearLayout>
     <LinearLayout

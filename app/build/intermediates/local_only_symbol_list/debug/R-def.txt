@@ -11,6 +11,7 @@ id importOszButton
 id loadingSpinner
 id loadingText
 id nextButton
+id pitchResetButton
 id pitchSeekBar
 id pitchTextView
 id playButton
@@ -28,6 +29,7 @@ id songSeekBar
 id sortSpinner
 id switchLoop
 id switchShuffle
+id tempoResetButton
 id tempoSeekBar
 id tempoTextView
 id textArtist

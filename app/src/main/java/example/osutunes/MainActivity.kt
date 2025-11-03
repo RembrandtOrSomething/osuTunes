@@ -87,6 +87,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var tempoTextView: TextView
     private lateinit var pitchSeekBar: SeekBar
     private lateinit var pitchTextView: TextView
+    private lateinit var tempoResetButton: Button
+    private lateinit var pitchResetButton: Button
 
 
     // --- State Variables ---
@@ -202,6 +204,8 @@ class MainActivity : AppCompatActivity() {
         tempoTextView = findViewById(R.id.tempoTextView)
         pitchSeekBar = findViewById(R.id.pitchSeekBar)
         pitchTextView = findViewById(R.id.pitchTextView)
+        tempoResetButton = findViewById(R.id.tempoResetButton)
+        pitchResetButton = findViewById(R.id.pitchResetButton)
     }
 
     private fun setupListeners() {
@@ -298,6 +302,26 @@ class MainActivity : AppCompatActivity() {
             override fun onStopTrackingTouch(seekBar: SeekBar?) {}
         })
 
+        // Tempo Reset Button - Click to reset, Long press to type value
+        tempoResetButton.setOnClickListener {
+            resetTempoToNormal()
+        }
+        
+        tempoResetButton.setOnLongClickListener {
+            showTempoInputDialog()
+            true
+        }
+
+        // Pitch Reset Button - Click to reset, Long press to type value  
+        pitchResetButton.setOnClickListener {
+            resetPitchToNormal()
+        }
+        
+        pitchResetButton.setOnLongClickListener {
+            showPitchInputDialog()
+            true
+        }
+
         // Sort Spinner Listener (Unchanged)
         sortSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
@@ -324,6 +348,94 @@ class MainActivity : AppCompatActivity() {
                 playSong(indexInPlaybackList)
             }
         }
+    }
+
+    private fun resetTempoToNormal() {
+        currentTempo = 1.0f
+        tempoTextView.text = String.format(Locale.getDefault(), "%.2fx", currentTempo)
+        val tempoProgress = ((currentTempo - 0.5f) / 2.0f * 400.0f).toInt().coerceIn(0, 400)
+        tempoSeekBar.progress = tempoProgress
+        
+        if (mediaPlayer != null) {
+            applyPlaybackParams()
+        }
+        savePlaybackSetting(TEMPO_KEY, currentTempo)
+        Toast.makeText(this, "Tempo reset to 1.00x", Toast.LENGTH_SHORT).show()
+    }
+
+    private fun resetPitchToNormal() {
+        currentPitch = 1.0f
+        pitchTextView.text = String.format(Locale.getDefault(), "%.2fx", currentPitch)
+        val pitchProgress = ((currentPitch - 0.5f) / 2.0f * 400.0f).toInt().coerceIn(0, 400)
+        pitchSeekBar.progress = pitchProgress
+        
+        if (mediaPlayer != null) {
+            applyPlaybackParams()
+        }
+        savePlaybackSetting(PITCH_KEY, currentPitch)
+        Toast.makeText(this, "Pitch reset to 1.00x", Toast.LENGTH_SHORT).show()
+    }
+
+    private fun showTempoInputDialog() {
+        val input = EditText(this)
+        input.inputType = android.text.InputType.TYPE_CLASS_NUMBER or android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL
+        input.setText(String.format(Locale.getDefault(), "%.2f", currentTempo))
+        
+        AlertDialog.Builder(this)
+            .setTitle("Set Tempo")
+            .setMessage("Enter tempo value (0.50 - 2.50):")
+            .setView(input)
+            .setPositiveButton("OK") { _, _ ->
+                val text = input.text.toString()
+                try {
+                    val newTempo = text.toFloat().coerceIn(0.5f, 2.5f)
+                    currentTempo = newTempo
+                    tempoTextView.text = String.format(Locale.getDefault(), "%.2fx", newTempo)
+                    val tempoProgress = ((newTempo - 0.5f) / 2.0f * 400.0f).toInt().coerceIn(0, 400)
+                    tempoSeekBar.progress = tempoProgress
+                    
+                    if (mediaPlayer != null) {
+                        applyPlaybackParams()
+                    }
+                    savePlaybackSetting(TEMPO_KEY, currentTempo)
+                    Toast.makeText(this, "Tempo set to ${String.format(Locale.getDefault(), "%.2fx", newTempo)}", Toast.LENGTH_SHORT).show()
+                } catch (e: NumberFormatException) {
+                    Toast.makeText(this, "Invalid number format", Toast.LENGTH_SHORT).show()
+                }
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun showPitchInputDialog() {
+        val input = EditText(this)
+        input.inputType = android.text.InputType.TYPE_CLASS_NUMBER or android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL
+        input.setText(String.format(Locale.getDefault(), "%.2f", currentPitch))
+        
+        AlertDialog.Builder(this)
+            .setTitle("Set Pitch")
+            .setMessage("Enter pitch value (0.50 - 2.50):")
+            .setView(input)
+            .setPositiveButton("OK") { _, _ ->
+                val text = input.text.toString()
+                try {
+                    val newPitch = text.toFloat().coerceIn(0.5f, 2.5f)
+                    currentPitch = newPitch
+                    pitchTextView.text = String.format(Locale.getDefault(), "%.2fx", newPitch)
+                    val pitchProgress = ((newPitch - 0.5f) / 2.0f * 400.0f).toInt().coerceIn(0, 400)
+                    pitchSeekBar.progress = pitchProgress
+                    
+                    if (mediaPlayer != null) {
+                        applyPlaybackParams()
+                    }
+                    savePlaybackSetting(PITCH_KEY, currentPitch)
+                    Toast.makeText(this, "Pitch set to ${String.format(Locale.getDefault(), "%.2fx", newPitch)}", Toast.LENGTH_SHORT).show()
+                } catch (e: NumberFormatException) {
+                    Toast.makeText(this, "Invalid number format", Toast.LENGTH_SHORT).show()
+                }
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
     }
 
     private fun loadInitialData() {

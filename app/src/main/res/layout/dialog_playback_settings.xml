@@ -1,128 +1,147 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView
+    xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:padding="16dp"
-    android:background="#1E1E2E">
+    android:padding="16dp">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical">
 
-        <!-- Tempo -->
-        <TextView
-            android:id="@+id/dialogTempoLabel"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Tempo"
-            android:textColor="#BAC2DE"
-            android:textSize="14sp"/>
-
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:gravity="center_vertical"
-            android:layout_marginTop="4dp">
+            android:paddingVertical="8dp">
 
-            <SeekBar
-                android:id="@+id/dialogTempoSeekBar"
+            <TextView
                 android:layout_width="0dp"
                 android:layout_weight="1"
                 android:layout_height="wrap_content"
-                android:max="400"
-                android:progress="100"
-                android:progressTint="#CBA6F7"
-                android:thumbTint="#CBA6F7"/>
+                android:text="Shuffle Mode"
+                android:textSize="16sp"
+                android:textColor="@android:color/white"/>
 
-            <Button
-                android:id="@+id/dialogResetTempoButton"
+            <Switch
+                android:id="@+id/switchShuffle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Reset"
-                android:textSize="12sp"
-                android:layout_marginStart="8dp"
-                android:backgroundTint="#CBA6F7"/>
+                android:thumbTint="#A6E3A1"
+                android:trackTint="#6C7086"/>
         </LinearLayout>
-
-        <TextView
-            android:id="@+id/dialogTempoTextView"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="1.00x"
-            android:textColor="#CBA6F7"
-            android:layout_marginTop="4dp"/>
-
-        <!-- Pitch -->
-        <TextView
-            android:id="@+id/dialogPitchLabel"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Pitch"
-            android:textColor="#BAC2DE"
-            android:textSize="14sp"
-            android:layout_marginTop="12dp"/>
+        
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="#45475A"
+            android:layout_marginVertical="8dp"/>
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:gravity="center_vertical"
-            android:layout_marginTop="4dp">
+            android:paddingVertical="8dp">
 
-            <SeekBar
-                android:id="@+id/dialogPitchSeekBar"
+            <TextView
                 android:layout_width="0dp"
                 android:layout_weight="1"
                 android:layout_height="wrap_content"
-                android:max="400"
-                android:progress="100"
+                android:text="Loop (Repeat Song)"
+                android:textSize="16sp"
+                android:textColor="@android:color/white"/>
+
+            <Switch
+                android:id="@+id/switchLoop"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:thumbTint="#89B4FA"
+                android:trackTint="#6C7086"/>
+        </LinearLayout>
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="#45475A"
+            android:layout_marginVertical="8dp"/>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Playback Speed (0.5x to 1.5x)"
+            android:textSize="16sp"
+            android:textColor="@android:color/white"
+            android:layout_marginTop="8dp"/>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <SeekBar
+                android:id="@+id/seekBarSpeed"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="wrap_content"
+                android:max="200"
+                android:progress="100" 
+                android:progressTint="#F9E2AF"
+                android:thumbTint="#F9E2AF"/>
+
+            <TextView
+                android:id="@+id/textSpeedValue"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:minWidth="50dp"
+                android:gravity="end"
+                android:text="1.00x"
+                android:textColor="#F9E2AF"
+                android:layout_marginStart="8dp"/>
+        </LinearLayout>
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="#45475A"
+            android:layout_marginVertical="8dp"/>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Playback Pitch (0.5x to 1.5x)"
+            android:textSize="16sp"
+            android:textColor="@android:color/white"
+            android:layout_marginTop="8dp"/>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <SeekBar
+                android:id="@+id/seekBarPitch"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="wrap_content"
+                android:max="200"
+                android:progress="100" 
                 android:progressTint="#F38BA8"
                 android:thumbTint="#F38BA8"/>
 
-            <Button
-                android:id="@+id/dialogResetPitchButton"
+            <TextView
+                android:id="@+id/textPitchValue"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Reset"
-                android:textSize="12sp"
-                android:layout_marginStart="8dp"
-                android:backgroundTint="#F38BA8"/>
-        </LinearLayout>
-
-        <TextView
-            android:id="@+id/dialogPitchTextView"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="1.00x"
-            android:textColor="#F38BA8"
-            android:layout_marginTop="4dp"/>
-
-        <!-- Shuffle & Loop -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center"
-            android:layout_marginTop="16dp">
-
-            <Button
-                android:id="@+id/dialogShuffleButton"
-                android:layout_width="0dp"
-                android:layout_weight="1"
-                android:layout_height="wrap_content"
-                android:text="Shuffle: Off"
-                android:backgroundTint="#89B4FA"/>
-
-            <Button
-                android:id="@+id/dialogRepeatButton"
-                android:layout_width="0dp"
-                android:layout_weight="1"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
-                android:text="Loop: Off"
-                android:backgroundTint="#F38BA8"/>
+                android:minWidth="50dp"
+                android:gravity="end"
+                android:text="1.00x"
+                android:textColor="#F38BA8"
+                android:layout_marginStart="8dp"/>
         </LinearLayout>
 
     </LinearLayout>

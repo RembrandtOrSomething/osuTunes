@@ -2,7 +2,7 @@ do whatever the fk you want with this code, it's not mine to begin with. (made u
 
 fk you rian, you made me spend 12 hours making ts.
 
-fixed it all in v2.5.0
+fixed it all in v2.5.0 and higher
 
 ~~i suggest using v1.5.0 if you already had osu!droid. if not, v2.1.0 is good for those who want their songs to come from the osu! website as well.
 the osz import function does not delete the imported osz files, so you'll have to do it manually (fk android "security"). this is technically possible to do, but after crashing my app thrice, i have lost all motivation to do it. i just wanna hear my damn music~~

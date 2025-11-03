@@ -75,6 +75,7 @@ animator mtrl_fab_hide_motion_spec
 animator mtrl_fab_show_motion_spec
 animator mtrl_fab_transformation_sheet_collapse_spec
 animator mtrl_fab_transformation_sheet_expand_spec
+array sort_options
 attr SharedValue
 attr SharedValueId
 attr actionBarDivider
@@ -3006,6 +3007,7 @@ drawable notification_template_icon_bg
 drawable notification_template_icon_low_bg
 drawable notification_tile_bg
 drawable notify_panel_notification_icon_bg
+drawable rounded_edittext_bg
 drawable test_level_drawable
 drawable tooltip_frame_dark
 drawable tooltip_frame_light
@@ -3143,6 +3145,7 @@ id cos
 id counterclockwise
 id cradle
 id currentState
+id currentTimeTextView
 id custom
 id customPanel
 id cut
@@ -3382,6 +3385,7 @@ id scrollIndicatorDown
 id scrollIndicatorUp
 id scrollView
 id scrollable
+id searchEditText
 id search_badge
 id search_bar
 id search_bar_text_view
@@ -3415,6 +3419,7 @@ id shortcut
 id showCustom
 id showHome
 id showTitle
+id shuffleButton
 id sin
 id skipCollapsed
 id skipped
@@ -3425,6 +3430,7 @@ id snap
 id snapMargins
 id songList
 id songSeekBar
+id sortSpinner
 id south
 id spacer
 id special_effects_controller_view_tag
@@ -3465,10 +3471,12 @@ id tag_unhandled_key_listeners
 id tag_window_insets_animation_callback
 id text
 id text2
+id textArtist
 id textEnd
 id textSpacerNoButtons
 id textSpacerNoTitle
 id textStart
+id textTitle
 id textTop
 id text_input_end_icon
 id text_input_error_icon
@@ -3486,6 +3494,7 @@ id title_template
 id toggle
 id top
 id topPanel
+id totalTimeTextView
 id touch_outside
 id transitionToEnd
 id transitionToStart
@@ -3650,6 +3659,7 @@ layout design_text_input_end_icon
 layout design_text_input_start_icon
 layout ime_base_split_test_activity
 layout ime_secondary_split_test_activity
+layout list_item_song
 layout m3_alert_dialog
 layout m3_alert_dialog_actions
 layout m3_alert_dialog_title

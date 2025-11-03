@@ -1,7 +1,10 @@
 R_DEF: Internal format may change without notice
 local
+array sort_options
 drawable background_image
 drawable ic_music_note
+drawable rounded_edittext_bg
+id currentTimeTextView
 id folderButton
 id folderCountLabel
 id importOszButton
@@ -13,9 +16,16 @@ id prevButton
 id reloadButton
 id scanProgressBar
 id scanningStatus
+id searchEditText
+id shuffleButton
 id songList
 id songSeekBar
+id sortSpinner
+id textArtist
+id textTitle
+id totalTimeTextView
 layout activity_main
+layout list_item_song
 string app_name
 string choose_folder
 string loading_songs

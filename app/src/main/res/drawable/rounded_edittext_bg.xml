@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <!-- Background color matching the dark theme -->
+    <solid android:color="#24273A" />
+    <!-- Rounded corners -->
+    <corners android:radius="8dp" />
+    <!-- Optional: Add a subtle border -->
+    <stroke
+        android:width="1dp"
+        android:color="#45475A" />
+    <!-- Padding for the text inside -->
+    <padding
+        android:left="8dp"
+        android:top="8dp"
+        android:right="8dp"
+        android:bottom="8dp" />
+</shape>

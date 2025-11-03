@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<resources>
+<!-- Array used for the song sorting spinner in MainActivity -->
+<string-array name="sort_options">
+<item>Title</item>
+<item>Artist</item>
+<item>Versions</item>
+</string-array>
+</resources>

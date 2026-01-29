@@ -1,3 +1,5 @@
+java17 gradle8.14.2 and androidsdk34
+
 do whatever the fk you want with this code, it's not mine to begin with. (made using gemini, fkin' copilot and chatgpt, the unholy trinity)
 
 fk you rian, you made me spend 12 hours making ts.

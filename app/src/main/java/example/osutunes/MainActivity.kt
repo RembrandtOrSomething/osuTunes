@@ -2,8 +2,14 @@ package com.example.osutunes
 
 import android.app.Activity
 import android.app.AlertDialog
+import android.animation.ObjectAnimator
+import android.animation.AnimatorSet
+import android.animation.AnimatorListenerAdapter
+import android.animation.ValueAnimator
 import android.content.Context
 import android.content.Intent
+import android.graphics.Canvas
+import android.graphics.Paint
 import android.media.MediaPlayer
 import android.media.PlaybackParams
 import android.net.Uri
@@ -13,6 +19,7 @@ import android.os.Handler
 import android.os.Looper
 import android.text.Editable
 import android.text.TextWatcher
+import android.util.AttributeSet
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
@@ -58,14 +65,24 @@ class MainActivity : AppCompatActivity() {
         val uriString: String,
         val artist: String,
         val title: String,
-        val bpm: Double? = null  // NEW: BPM field
+        val bpm: Double? = null,
+        val bpmRange: String? = null,  // NEW: "xbpm to ybpm (mostly zbpm)"
+        val bpms: List<Double>? = null  // NEW: Store all BPM values
+    )
+    
+    @Serializable
+    private data class CachedSongData(
+        val songs: List<SongEntry>,
+        val folderModificationTimes: Map<String, Long> // folderName -> lastModified
     )
     
     private data class OsuMetadata(
         val audioFilename: String, 
         val artist: String, 
         val title: String,
-        val bpm: Double? = null  // NEW: BPM field
+        val bpm: Double? = null,
+        val bpmRange: String? = null,  // NEW
+        val bpms: List<Double>? = null  // NEW
     )
 
     // UI Components
@@ -76,7 +93,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var folderButton: Button
     private lateinit var reloadButton: Button
     private lateinit var importOszButton: Button
-    private lateinit var shuffleButton: Button  // REMOVED: Will hide this
+    private lateinit var shuffleButton: Button
     private lateinit var repeatButton: Button
     private lateinit var loadingSpinner: ProgressBar
     private lateinit var loadingText: TextView
@@ -110,7 +127,7 @@ class MainActivity : AppCompatActivity() {
     private val handler = Handler(Looper.getMainLooper())
     private var songAdapter: SongAdapter? = null
     
-    // Playback list - now always shuffled (the "feature")
+    // Playback list - permanent shuffled playlist that doesn't change with search
     private var currentPlaybackList = mutableListOf<SongEntry>()
     private var currentPlayingSong: SongEntry? = null
 
@@ -194,7 +211,7 @@ class MainActivity : AppCompatActivity() {
         folderButton = findViewById(R.id.folderButton)
         reloadButton = findViewById(R.id.reloadButton)
         importOszButton = findViewById(R.id.importOszButton)
-        shuffleButton = findViewById(R.id.shuffleButton)  // REMOVED: Will hide this
+        shuffleButton = findViewById(R.id.shuffleButton)
         repeatButton = findViewById(R.id.repeatButton)
         sortSpinner = findViewById(R.id.sortSpinner)
         searchEditText = findViewById(R.id.searchEditText)
@@ -228,8 +245,13 @@ class MainActivity : AppCompatActivity() {
             }
             AlertDialog.Builder(this)
                 .setTitle("Reload Songs")
-                .setMessage("Rescan the entire current folder for songs?")
-                .setPositiveButton("Yes") { _, _ -> loadBeatmapSongs(uri) }
+                .setMessage("Rescan the entire current folder for songs?\n\nChoose 'Force Refresh' to clear cached data.")
+                .setPositiveButton("Normal Reload") { _, _ -> loadBeatmapSongs(uri) }
+                .setNeutralButton("Force Refresh") { _, _ -> 
+                    clearCache()
+                    loadBeatmapSongs(uri)
+                    Toast.makeText(this, "Cache cleared. Performing full scan...", Toast.LENGTH_SHORT).show()
+                }
                 .setNegativeButton("Cancel", null)
                 .show()
         }
@@ -315,8 +337,11 @@ class MainActivity : AppCompatActivity() {
         searchEditText.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                // Only filter the display, don't update playback list
                 songAdapter?.filter?.filter(s)
-                updateCurrentPlaybackList()
+                
+                // DO NOT call updateCurrentPlaybackList() here at all!
+                // The playback list should remain unchanged during search
             }
             override fun afterTextChanged(s: Editable?) {}
         })
@@ -324,10 +349,16 @@ class MainActivity : AppCompatActivity() {
         listView.setOnItemClickListener { _, _, position, _ ->
             val selectedSong = songAdapter?.getItem(position)
             if (selectedSong != null) {
+                // Find the song in the permanent playback list
                 val indexInPlaybackList = currentPlaybackList.indexOfFirst { it.uriString == selectedSong.uriString }
+                
                 if (indexInPlaybackList != -1) {
+                    // Song found in playback list, play it
                     playSong(indexInPlaybackList)
                 } else {
+                    // Song not in playback list (this shouldn't happen with our fix)
+                    // Add it to playback list temporarily and play
+                    Toast.makeText(this, "Song added to playback queue", Toast.LENGTH_SHORT).show()
                     currentPlaybackList.add(selectedSong)
                     playSong(currentPlaybackList.size - 1)
                 }
@@ -335,32 +366,45 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun updateCurrentPlaybackList() {
-        currentPlaybackList.clear()
-        val filteredSongs = songAdapter?.getAllFilteredSongs() ?: allSongEntries
-        currentPlaybackList.addAll(filteredSongs)
+    private fun updateCurrentPlaybackList(preserveCurrentSong: Boolean = true) {
+        // We ONLY update the playback list when ALL songs are shown (no search filter)
+        // OR when the app first loads
         
-        // FEATURE: Always shuffle the playback list for that chaotic randomness!
-        currentPlaybackList.shuffle()
+        val isSearching = searchEditText.text?.isNotEmpty() == true
         
-        Log.d(TAG, "Playback list updated and shuffled. Size: ${currentPlaybackList.size}")
-        
-        // Update current index if a song is playing
-        currentPlayingSong?.let { playingSong ->
-            val newIndex = currentPlaybackList.indexOfFirst { it.uriString == playingSong.uriString }
-            if (newIndex != -1) {
-                currentIndex = newIndex
-                Log.d(TAG, "Updated current index to $currentIndex for playing song")
-            } else {
-                // Song no longer in filtered list, stop playback
-                Log.d(TAG, "Playing song no longer in filtered list, stopping playback")
-                mediaPlayer?.release()
-                mediaPlayer = null
-                playButton.text = "▶"
-                nowPlayingBar.visibility = View.GONE
-                currentPlayingSong = null
-                songAdapter?.setCurrentlyPlaying(null)
+        if (!isSearching) {
+            // Only update playback list when NOT searching
+            val previousPlaybackList = currentPlaybackList.toList()
+            
+            currentPlaybackList.clear()
+            currentPlaybackList.addAll(allSongEntries)
+            
+            // Only shuffle if the full list has actually changed
+            val shouldShuffle = previousPlaybackList.isEmpty() || 
+                               previousPlaybackList.size != currentPlaybackList.size ||
+                               !previousPlaybackList.containsAll(currentPlaybackList)
+            
+            if (shouldShuffle) {
+                currentPlaybackList.shuffle()
+                Log.d(TAG, "Playback list shuffled. New size: ${currentPlaybackList.size}")
             }
+            
+            // Update current index if a song is playing
+            if (preserveCurrentSong && currentPlayingSong != null) {
+                val newIndex = currentPlaybackList.indexOfFirst { it.uriString == currentPlayingSong!!.uriString }
+                if (newIndex != -1) {
+                    currentIndex = newIndex
+                    Log.d(TAG, "Updated current index to $currentIndex for playing song")
+                } else {
+                    // This shouldn't happen if we're using the full list
+                    Log.w(TAG, "Playing song not found in full list, resetting to first song")
+                    currentIndex = 0
+                }
+            }
+        } else {
+            // When searching, DO NOT update the playback list at all
+            // Keep using the existing shuffled playlist
+            Log.d(TAG, "Searching active, playback list unchanged (size: ${currentPlaybackList.size})")
         }
     }
 
@@ -473,6 +517,40 @@ class MainActivity : AppCompatActivity() {
 
     private fun savePlaybackSetting(key: String, value: Float) {
         getSharedPreferences(PREFS_NAME, MODE_PRIVATE).edit().putFloat(key, value).apply()
+    }
+
+    private fun loadCache(): CachedSongData? {
+        return try {
+            val cacheFile = File(filesDir, "songs_cache.json")
+            if (cacheFile.exists()) {
+                val jsonString = cacheFile.readText()
+                Json.decodeFromString(jsonString)
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error loading cache", e)
+            null
+        }
+    }
+
+    private fun saveCache(data: CachedSongData) {
+        try {
+            val cacheFile = File(filesDir, "songs_cache.json")
+            val jsonString = Json.encodeToString(data)
+            cacheFile.writeText(jsonString)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error saving cache", e)
+        }
+    }
+
+    private fun clearCache() {
+        try {
+            val cacheFile = File(filesDir, "songs_cache.json")
+            cacheFile.delete()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error clearing cache", e)
+        }
     }
 
     private fun loadBeatmapSongs(uri: Uri) = lifecycleScope.launch(Dispatchers.Main) {
@@ -597,7 +675,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun playSong(index: Int) {
-        // FEATURE: Always use the shuffled playback list!
+        // Always use the permanent shuffled playback list!
         val playbackList = currentPlaybackList
         if (playbackList.isEmpty() || index < 0 || index >= playbackList.size) {
             Log.e(TAG, "Invalid play index: $index, list size: ${playbackList.size}")
@@ -680,7 +758,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun playNext() {
-        // FEATURE: Always use the shuffled playback list!
+        // Always use the permanent shuffled playback list!
         val playbackList = currentPlaybackList
         if (playbackList.isEmpty()) {
             Log.d(TAG, "Playback list is empty, cannot play next")
@@ -693,7 +771,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun playPrevious() {
-        // FEATURE: Always use the shuffled playback list!
+        // Always use the permanent shuffled playback list!
         val playbackList = currentPlaybackList
         if (playbackList.isEmpty()) {
             Log.d(TAG, "Playback list is empty, cannot play previous")
@@ -836,8 +914,16 @@ class MainActivity : AppCompatActivity() {
                         "${metadata.artist} - ${metadata.title}"
                     }
                     
-                    // NEW: Include BPM in the song entry
-                    entries.add(SongEntry(label, audioFile.uri.toString(), metadata.artist, metadata.title, metadata.bpm))
+                    // NEW: Include BPM range in the song entry
+                    entries.add(SongEntry(
+                        label, 
+                        audioFile.uri.toString(), 
+                        metadata.artist, 
+                        metadata.title, 
+                        metadata.bpm,
+                        metadata.bpmRange,
+                        metadata.bpms
+                    ))
                 }
             }
         entries
@@ -874,24 +960,65 @@ class MainActivity : AppCompatActivity() {
         val pickedDir = DocumentFile.fromTreeUri(this@MainActivity, uri) ?: return@withContext null
         val allFolders = pickedDir.listFiles().filter { it.isDirectory }
         val total = allFolders.size
+
+        // Try to load from cache first
+        val cachedData = loadCache()
+        val folderModTimes = mutableMapOf<String, Long>()
+        var needsFullRescan = cachedData == null
+
+        // Check if any folder has been modified since last scan
+        if (!needsFullRescan && cachedData != null) {
+            for (folder in allFolders) {
+                val folderName = folder.name ?: continue
+                val currentModTime = folder.lastModified()
+                folderModTimes[folderName] = currentModTime
+                
+                val cachedModTime = cachedData.folderModificationTimes[folderName]
+                if (cachedModTime == null || cachedModTime != currentModTime) {
+                    needsFullRescan = true
+                    break
+                }
+            }
+        }
+
+        // Return cached data if nothing has changed
+        if (!needsFullRescan && cachedData != null) {
+            Log.d(TAG, "Using cached song data")
+            return@withContext cachedData.songs
+        }
+
+        // Perform full scan
+        Log.d(TAG, "Performing full scan of $total folders")
         val progressCounter = AtomicInteger(0)
 
-        // Process folders in parallel for much faster scanning
+        // Process folders in parallel with optimized concurrency
         val folderResults = allFolders.map { folder ->
             async { 
                 val folderEntries = processBeatmapFolder(folder)
                 val currentProgress = progressCounter.incrementAndGet()
                 
-                // Update progress on main thread (but less frequently for performance)
+                // Update progress on main thread
                 if (currentProgress % 5 == 0 || currentProgress == total) {
                     withContext(Dispatchers.Main) {
                         scanProgressBar.progress = if (total > 0) (currentProgress * 100 / total) else 0
                         folderCountLabel.text = "Scanned $currentProgress of $total folders"
                     }
                 }
+                
+                // Track folder modification time
+                val folderName = folder.name ?: ""
+                folderModTimes[folderName] = folder.lastModified()
+                
                 folderEntries
             }
         }.awaitAll().flatten()
+
+        // Cache the results
+        try {
+            saveCache(CachedSongData(folderResults, folderModTimes))
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to save cache", e)
+        }
 
         withContext(Dispatchers.Main) {
             scanningStatus.text = "Finalizing song list..."
@@ -901,8 +1028,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
-     * Enhanced .osu file parser that extracts metadata AND BPM
-     * Now uses the most frequent BPM (mode) instead of average
+     * Enhanced .osu file parser that extracts metadata AND BPM with duration analysis
      */
     private fun parseOsuFile(file: DocumentFile): OsuMetadata? {
         return try {
@@ -911,14 +1037,21 @@ class MainActivity : AppCompatActivity() {
                 var audioFilename: String? = null
                 var artist: String? = null
                 var title: String? = null
-                val bpms = mutableListOf<Double>()
+                val allBpms = mutableListOf<Double>()
                 var inTimingSection = false
                 var line: String?
+                
+                // Variables for BPM timing analysis
+                var lastTime = 0.0
+                var currentBpm: Double? = null
+                val bpmSegments = mutableListOf<Pair<Double, Double>>() // (duration, bpm)
 
                 while (reader.readLine().also { line = it } != null) {
                     when {
                         line == "[TimingPoints]" -> {
                             inTimingSection = true
+                            lastTime = 0.0
+                            currentBpm = null
                             continue
                         }
                         line?.startsWith("[") == true && line != "[TimingPoints]" -> {
@@ -935,16 +1068,33 @@ class MainActivity : AppCompatActivity() {
                         }
                         inTimingSection -> {
                             val timingParts = line?.split(",")
-                            if (timingParts != null && timingParts.size >= 8) {
+                            if (timingParts != null && timingParts.size >= 2) {
                                 try {
+                                    val time = timingParts[0].toDouble()
                                     val beatLength = timingParts[1].toDouble()
-                                    val uninherited = timingParts[6].toInt() == 1
                                     
-                                    // Only consider uninherited timing points (main BPM changes)
+                                    // Only process uninherited timing points (BPM changes)
+                                    val uninherited = if (timingParts.size >= 7) {
+                                        timingParts[6].toInt() == 1
+                                    } else {
+                                        true  // Assume uninherited if field doesn't exist
+                                    }
+                                    
                                     if (uninherited && beatLength > 0) {
                                         val calculatedBpm = 60000.0 / beatLength
-                                        bpms.add(calculatedBpm)
-                                        Log.d(TAG, "Found BPM: $calculatedBpm in ${file.name}")
+                                        
+                                        // Validate BPM range
+                                        if (calculatedBpm >= 30 && calculatedBpm <= 600) {
+                                            allBpms.add(calculatedBpm)
+                                            
+                                            // Track BPM segments for duration analysis
+                                            if (currentBpm != null) {
+                                                bpmSegments.add(Pair(time - lastTime, currentBpm))
+                                            }
+                                            
+                                            currentBpm = calculatedBpm
+                                            lastTime = time
+                                        }
                                     }
                                 } catch (e: NumberFormatException) {
                                     // Ignore malformed timing points
@@ -953,24 +1103,27 @@ class MainActivity : AppCompatActivity() {
                         }
                     }
 
-                    // Stop reading early if we have all required metadata
+                    // Stop reading after we've processed TimingPoints section (if it exists)
+                    // This ensures we read all BPM data before stopping
                     if (audioFilename != null && artist != null && title != null) {
-                        // Continue reading timing points even after we have basic metadata
-                        if (!inTimingSection && bpms.isNotEmpty()) {
+                        // Check if we've seen the TimingPoints section and are now in a different section
+                        // OR if we've reached the end of the file after seeing timing points
+                        if (inTimingSection && line?.startsWith("[") == true && line != "[TimingPoints]") {
+                            // We're leaving the TimingPoints section
+                            if (currentBpm != null) {
+                                bpmSegments.add(Pair(100000.0, currentBpm))
+                            }
                             break
                         }
                     }
                 }
 
                 if (audioFilename != null && artist != null && title != null) {
-                    // NEW: Calculate the most frequent BPM (mode) instead of average
-                    val bpm = if (bpms.isNotEmpty()) {
-                        findMostFrequentBpm(bpms)
-                    } else {
-                        null
-                    }
+                    // Calculate the most accurate BPM representation
+                    val (mainBpm, bpmRange) = analyzeBpms(allBpms, bpmSegments, file.name ?: "unknown")
                     
-                    OsuMetadata(audioFilename, artist, title, bpm)
+                    Log.d(TAG, "BPM Analysis for ${file.name}: $bpmRange")
+                    OsuMetadata(audioFilename, artist, title, mainBpm, bpmRange, allBpms.distinct())
                 } else null
             }
         } catch (e: Exception) {
@@ -980,41 +1133,82 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
-     * NEW: Finds the most frequent BPM value (mode) from a list of BPMs
-     * Groups similar BPM values together to account for slight variations
+     * Enhanced BPM analysis that considers both frequency and duration
      */
-    private fun findMostFrequentBpm(bpms: List<Double>): Double {
-        if (bpms.isEmpty()) return 0.0
-        if (bpms.size == 1) return bpms.first()
-
-        // Group similar BPM values (within ±1 BPM tolerance)
-        val groupedBpms = mutableMapOf<Double, Int>()
+    private fun analyzeBpms(allBpms: List<Double>, bpmSegments: List<Pair<Double, Double>>, fileName: String): Pair<Double?, String?> {
+        if (allBpms.isEmpty()) return Pair(null, null)
         
-        for (bpm in bpms) {
-            // Round to nearest integer for grouping
-            val roundedBpm = bpm.roundToNearestInteger()
-            
-            // Count occurrences of this rounded BPM
-            groupedBpms[roundedBpm] = groupedBpms.getOrDefault(roundedBpm, 0) + 1
+        // If only one BPM, return it
+        if (allBpms.size == 1) {
+            val bpm = allBpms.first()
+            return Pair(bpm, "${formatBpm(bpm)} BPM")
         }
         
-        // Find the BPM with the highest count
-        val mostFrequent = groupedBpms.maxByOrNull { it.value }?.key ?: bpms.first()
+        // Group similar BPMs (within 1% tolerance)
+        val tolerance = 0.01 // 1% tolerance
+        val groupedBpms = mutableMapOf<Double, Int>()
         
-        Log.d(TAG, "BPM analysis: Most frequent = $mostFrequent from ${bpms.size} timing points")
-        Log.d(TAG, "BPM distribution: $groupedBpms")
+        for (bpm in allBpms) {
+            // Find if this BPM is similar to any existing group
+            val similarGroup = groupedBpms.keys.find { 
+                Math.abs(it - bpm) / it < tolerance 
+            }
+            
+            if (similarGroup != null) {
+                // Add to existing group (weighted average)
+                val newBpm = (similarGroup * groupedBpms[similarGroup]!! + bpm) / (groupedBpms[similarGroup]!! + 1)
+                val count = groupedBpms.remove(similarGroup)!!
+                groupedBpms[newBpm] = count + 1
+            } else {
+                // Create new group
+                groupedBpms[bpm] = 1
+            }
+        }
         
-        return mostFrequent
+        // Calculate min and max BPM
+        val minBpm = allBpms.minOrNull() ?: 0.0
+        val maxBpm = allBpms.maxOrNull() ?: 0.0
+        
+        // Find the most frequent BPM (by count)
+        val mostFrequentByCount = groupedBpms.maxByOrNull { it.value }?.key
+        
+        // Find the dominant BPM by duration (if we have segment data)
+        val dominantBpm = if (bpmSegments.isNotEmpty()) {
+            val durationByBpm = mutableMapOf<Double, Double>()
+            for ((duration, bpm) in bpmSegments) {
+                // Find the closest grouped BPM
+                val closestGroup = groupedBpms.keys.minByOrNull { Math.abs(it - bpm) } ?: bpm
+                durationByBpm[closestGroup] = durationByBpm.getOrDefault(closestGroup, 0.0) + duration
+            }
+            durationByBpm.maxByOrNull { it.value }?.key
+        } else {
+            mostFrequentByCount
+        }
+        
+        // Format the BPM range string
+        val rangeString = if (Math.abs(maxBpm - minBpm) < 5) {
+            // If BPM range is small, just show the average
+            val avgBpm = allBpms.average()
+            "${formatBpm(avgBpm)} BPM"
+        } else {
+            // Show range with dominant BPM
+            val dominant = dominantBpm ?: mostFrequentByCount ?: allBpms.average()
+            "${formatBpm(minBpm)} to ${formatBpm(maxBpm)} BPM (mostly ${formatBpm(dominant)})"
+        }
+        
+        Log.d(TAG, "BPM Analysis for $fileName: Min=${formatBpm(minBpm)}, Max=${formatBpm(maxBpm)}, Dominant=${dominantBpm?.let { formatBpm(it) }}, Range=$rangeString")
+        
+        return Pair(dominantBpm ?: mostFrequentByCount, rangeString)
     }
 
     /**
-     * Helper function to round BPM to nearest integer
+     * Helper function to format BPM
      */
-    private fun Double.roundToNearestInteger(): Double {
-        return Math.round(this).toDouble()
+    private fun formatBpm(bpm: Double): String {
+        return String.format(Locale.getDefault(), "%.0f", bpm)
     }
 
-    // UPDATED: SongAdapter with BPM display and BPM search
+    // UPDATED: SongAdapter with BPM range display and BPM search
     private class SongAdapter(
         context: Context,
         songs: List<SongEntry>,
@@ -1025,6 +1219,13 @@ class MainActivity : AppCompatActivity() {
         private var currentFilteredSongs: List<SongEntry> = songs.toMutableList()
         private var currentlyPlaying: SongEntry? = null
         private val layoutInflater = LayoutInflater.from(context)
+        
+        // Shared animator for synchronized scrolling
+        private var sharedAnimationTime: Long = 0
+        private var sharedAnimator: android.animation.ValueAnimator? = null
+        private val scrollingViews = mutableListOf<Pair<ScrollingTextView, ScrollingConfig>>()
+        
+        data class ScrollingConfig(val textWidth: Float, val viewWidth: Float, val totalDistance: Float, val duration: Long, val isFirstLoop: Boolean)
 
         override fun getCount(): Int = currentFilteredSongs.size
         override fun getItem(position: Int): SongEntry? = currentFilteredSongs[position]
@@ -1042,32 +1243,113 @@ class MainActivity : AppCompatActivity() {
             val view = convertView ?: layoutInflater.inflate(R.layout.list_item_song, parent, false)
 
             val titleTextView = view.findViewById<TextView>(R.id.textTitle)
-            val artistTextView = view.findViewById<TextView>(R.id.textArtist)
+            val artistTextView = view.findViewById<ScrollingTextView>(R.id.textArtist)
 
             if (song != null) {
                 titleTextView.text = song.title
                 
-                // NEW: Display BPM if available
-                val bpmText = if (song.bpm != null) {
-                    " (${String.format(Locale.getDefault(), "%.0f", song.bpm)} BPM)"
+                // Display BPM range if available, otherwise just artist
+                val bpmText = song.bpmRange ?: if (song.bpm != null) {
+                    "${String.format(Locale.getDefault(), "%.0f", song.bpm)} BPM"
                 } else {
-                    ""
+                    null
                 }
-                artistTextView.text = "${song.artist}$bpmText"
+                
+                val artistText = if (bpmText != null) {
+                    "${song.artist} • $bpmText"
+                } else {
+                    song.artist
+                }
+                
+                artistTextView.setText(artistText)
+                
+                // Start scrolling animation
+                artistTextView.post {
+                    val textWidth = artistTextView.measureText(artistText)
+                    val viewWidth = (artistTextView.width - artistTextView.paddingLeft - artistTextView.paddingRight).toFloat()
+                    
+                    startTextScrolling(artistTextView, textWidth, viewWidth)
+                }
                 
                 // Highlight currently playing song
                 if (song == currentlyPlaying) {
                     view.setBackgroundColor(0xFF45475A.toInt())
                     titleTextView.setTextColor(0xFFCBA6F7.toInt())
-                    artistTextView.setTextColor(0xFFCBA6F7.toInt())
                 } else {
                     view.setBackgroundColor(0x0024273A)
                     titleTextView.setTextColor(0xFFBAC2DE.toInt())
-                    artistTextView.setTextColor(0xFFBAC2DE.toInt())
                 }
             }
 
             return view
+        }
+
+        private fun startTextScrolling(textView: ScrollingTextView, textWidth: Float, viewWidth: Float) {
+            // Only scroll if text is actually longer than view
+            if (textWidth <= viewWidth) {
+                textView.setScrollPosition(0f)
+                return
+            }
+            
+            // Calculate animation parameters
+            val scrollDistance = textWidth + viewWidth
+            val duration = (scrollDistance * 20).toLong().coerceAtLeast(5000)
+            
+            // Register this view for synchronized scrolling
+            val config = ScrollingConfig(textWidth, viewWidth, scrollDistance, duration, true)
+            scrollingViews.add(Pair(textView, config))
+            
+            // Start shared animator if not already running
+            if (sharedAnimator == null) {
+                startSharedAnimator(duration)
+            }
+        }
+        
+        private fun startSharedAnimator(firstLoopDuration: Long) {
+            sharedAnimator = android.animation.ValueAnimator.ofFloat(0f, 1f)
+            sharedAnimator!!.duration = firstLoopDuration
+            sharedAnimator!!.addUpdateListener { animator ->
+                val progress = animator.animatedValue as Float
+                sharedAnimationTime = (progress * firstLoopDuration).toLong()
+                updateAllScrollingViews(sharedAnimationTime, firstLoopDuration, true)
+            }
+            sharedAnimator!!.addListener(object : AnimatorListenerAdapter() {
+                override fun onAnimationEnd(animation: android.animation.Animator) {
+                    // After first loop, start infinite loop with off-screen start
+                    if (scrollingViews.isNotEmpty()) {
+                        val loopDuration = scrollingViews[0].second.duration
+                        startInfiniteLoopAnimator(loopDuration)
+                    }
+                }
+            })
+            sharedAnimator!!.start()
+        }
+        
+        private fun startInfiniteLoopAnimator(loopDuration: Long) {
+            sharedAnimator = android.animation.ValueAnimator.ofFloat(0f, 1f)
+            sharedAnimator!!.duration = loopDuration
+            sharedAnimator!!.repeatCount = android.animation.ValueAnimator.INFINITE
+            sharedAnimator!!.repeatMode = android.animation.ValueAnimator.RESTART
+            sharedAnimator!!.addUpdateListener { animator ->
+                val progress = animator.animatedValue as Float
+                sharedAnimationTime = (progress * loopDuration).toLong()
+                updateAllScrollingViews(sharedAnimationTime, loopDuration, false)
+            }
+            sharedAnimator!!.start()
+        }
+        
+        private fun updateAllScrollingViews(currentTime: Long, duration: Long, isFirstLoop: Boolean) {
+            for ((view, config) in scrollingViews) {
+                val progress = currentTime.toFloat() / duration.toFloat()
+                val scrollPos = if (isFirstLoop) {
+                    // First loop: 0f to -totalDistance
+                    progress * (-config.totalDistance)
+                } else {
+                    // Subsequent loops: viewWidth to -textWidth
+                    config.viewWidth + progress * (-config.textWidth - config.viewWidth)
+                }
+                view.setScrollPosition(scrollPos)
+            }
         }
 
         override fun getFilter(): Filter {
@@ -1079,21 +1361,28 @@ class MainActivity : AppCompatActivity() {
                         allSongs
                     } else {
                         allSongs.filter { song ->
-                            // Search in title and artist as before
+                            // Search in title and artist
                             val matchesText = song.title.toLowerCase(Locale.getDefault()).contains(query) ||
                                             song.artist.toLowerCase(Locale.getDefault()).contains(query)
                             
-                            // NEW: Also search by BPM
+                            // Search by BPM (exact or approximate)
                             val matchesBpm = if (song.bpm != null) {
                                 // Try to parse the query as a number for BPM search
                                 try {
                                     val bpmQuery = query.toDoubleOrNull()
                                     if (bpmQuery != null) {
-                                        // Allow approximate BPM matching (within ±5 BPM)
-                                        val bpmTolerance = 5.0
-                                        song.bpm in (bpmQuery - bpmTolerance)..(bpmQuery + bpmTolerance)
+                                        // Check if BPM matches within ±5 BPM
+                                        song.bpm in (bpmQuery - 5)..(bpmQuery + 5)
                                     } else {
-                                        false
+                                        // Check if query contains "bpm" and a number
+                                        val bpmRegex = "(\\d+)\\s*bpm".toRegex(RegexOption.IGNORE_CASE)
+                                        val match = bpmRegex.find(query)
+                                        if (match != null) {
+                                            val bpmValue = match.groupValues[1].toDoubleOrNull()
+                                            bpmValue != null && song.bpm in (bpmValue - 5)..(bpmValue + 5)
+                                        } else {
+                                            false
+                                        }
                                     }
                                 } catch (e: NumberFormatException) {
                                     false
@@ -1123,7 +1412,7 @@ class MainActivity : AppCompatActivity() {
                 "Title" -> allSongs.sortedBy { it.title.toLowerCase(Locale.getDefault()) }
                 "Artist" -> allSongs.sortedBy { it.artist.toLowerCase(Locale.getDefault()) }
                 "Versions" -> allSongs.sortedByDescending { it.label.count { c -> c == '(' } }
-                "BPM" -> allSongs.sortedBy { it.bpm ?: 0.0 }  // NEW: BPM sorting
+                "BPM" -> allSongs.sortedBy { it.bpm ?: 0.0 }
                 else -> allSongs
             }
             filter.filter(searchEditText.text?.toString())
@@ -1134,6 +1423,9 @@ class MainActivity : AppCompatActivity() {
         saveSongsToFile()
         songAdapter = SongAdapter(this, allSongEntries, searchEditText)
         listView.adapter = songAdapter
+        
+        // Always update the playback list when refreshing (app loads or scans)
+        // This creates the permanent shuffled playlist
         updateCurrentPlaybackList()
         
         val currentSortOption = sortSpinner.selectedItem?.toString() ?: "Title"
@@ -1188,4 +1480,50 @@ class MainActivity : AppCompatActivity() {
         mediaPlayer = null
         Log.d(TAG, "App destroyed, media player released")
     }
+}
+
+/**
+ * Custom View for rendering scrolling text without clipping issues
+ */
+class ScrollingTextView @JvmOverloads constructor(
+    context: Context,
+    attrs: AttributeSet? = null,
+    defStyleAttr: Int = 0
+) : View(context, attrs, defStyleAttr) {
+    private val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        textSize = 14f * context.resources.displayMetrics.scaledDensity
+        color = 0xB3FFFFFF.toInt()
+    }
+    
+    private var text: String = ""
+    private var scrollX: Float = 0f
+    
+    override fun onDraw(canvas: Canvas) {
+        super.onDraw(canvas)
+        canvas.drawText(text, scrollX, (height * 0.7f), paint)
+    }
+    
+    override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+        val textHeight = paint.fontMetrics.let { it.descent - it.ascent }
+        setMeasuredDimension(
+            getDefaultSize(suggestedMinimumWidth, widthMeasureSpec),
+            (textHeight + paddingTop + paddingBottom).toInt()
+        )
+    }
+    
+    fun setText(newText: String) {
+        text = newText
+        invalidate()
+    }
+    
+    fun setScrollPosition(x: Float) {
+        scrollX = x
+        invalidate()
+    }
+    
+    fun measureText(text: String): Float = paint.measureText(text)
+    
+    // Property for ObjectAnimator
+    @Suppress("UNUSED")
+    fun getScrollPosition(): Float = scrollX
 }

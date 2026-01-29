@@ -1,16 +1,16 @@
-#Mon Nov 03 20:39:28 UTC 2025
-base.0=/workspaces/osuTunes/app/build/intermediates/dex/debug/mergeExtDexDebug/classes.dex
-base.1=/workspaces/osuTunes/app/build/intermediates/dex/debug/mergeProjectDexDebug/0/classes.dex
-base.2=/workspaces/osuTunes/app/build/intermediates/dex/debug/mergeProjectDexDebug/2/classes.dex
-base.3=/workspaces/osuTunes/app/build/intermediates/dex/debug/mergeProjectDexDebug/6/classes.dex
-base.4=/workspaces/osuTunes/app/build/intermediates/dex/debug/mergeProjectDexDebug/7/classes.dex
-path.0=classes.dex
-path.1=0/classes.dex
-path.2=2/classes.dex
-path.3=6/classes.dex
+#Thu Jan 29 11:13:18 UTC 2026
 path.4=7/classes.dex
-renamed.0=classes.dex
-renamed.1=classes2.dex
-renamed.2=classes3.dex
+path.3=6/classes.dex
+path.2=2/classes.dex
+path.1=0/classes.dex
+path.0=classes.dex
+base.4=/workspaces/osuTunes/app/build/intermediates/dex/debug/mergeProjectDexDebug/7/classes.dex
+base.3=/workspaces/osuTunes/app/build/intermediates/dex/debug/mergeProjectDexDebug/6/classes.dex
+base.2=/workspaces/osuTunes/app/build/intermediates/dex/debug/mergeProjectDexDebug/2/classes.dex
+base.1=/workspaces/osuTunes/app/build/intermediates/dex/debug/mergeProjectDexDebug/0/classes.dex
+base.0=/workspaces/osuTunes/app/build/intermediates/dex/debug/mergeExtDexDebug/classes.dex
 renamed.3=classes4.dex
+renamed.2=classes3.dex
+renamed.1=classes2.dex
+renamed.0=classes.dex
 renamed.4=classes5.dex

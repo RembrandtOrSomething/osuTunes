@@ -3,9 +3,6 @@ package com.example.osutunes
 import android.app.Activity
 import android.app.AlertDialog
 import android.animation.ObjectAnimator
-import android.animation.AnimatorSet
-import android.animation.AnimatorListenerAdapter
-import android.animation.ValueAnimator
 import android.content.Context
 import android.content.Intent
 import android.graphics.Canvas
@@ -215,6 +212,9 @@ class MainActivity : AppCompatActivity() {
         repeatButton = findViewById(R.id.repeatButton)
         sortSpinner = findViewById(R.id.sortSpinner)
         searchEditText = findViewById(R.id.searchEditText)
+        // disable until initial load/scan finished
+        searchEditText.isEnabled = false
+        searchEditText.hint = "Loading..."
         currentTimeTextView = findViewById(R.id.currentTimeTextView)
         totalTimeTextView = findViewById(R.id.totalTimeTextView)
         tempoSeekBar = findViewById(R.id.tempoSeekBar)
@@ -431,13 +431,14 @@ class MainActivity : AppCompatActivity() {
     private fun showTempoInputDialog() {
         val input = EditText(this)
         input.inputType = android.text.InputType.TYPE_CLASS_NUMBER or android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL
-        input.setText(String.format(Locale.getDefault(), "%.2f", currentTempo))
+        // Force dot decimal separator in the dialog text
+        input.setText(String.format(Locale.US, "%.2f", currentTempo))
         AlertDialog.Builder(this)
             .setTitle("Set Tempo")
             .setMessage("Enter tempo value (0.50 - 2.50):")
             .setView(input)
             .setPositiveButton("OK") { _, _ ->
-                val text = input.text.toString()
+                val text = input.text.toString().replace(',', '.')
                 try {
                     val newTempo = text.toFloat().coerceIn(0.5f, 2.5f)
                     currentTempo = newTempo
@@ -458,13 +459,14 @@ class MainActivity : AppCompatActivity() {
     private fun showPitchInputDialog() {
         val input = EditText(this)
         input.inputType = android.text.InputType.TYPE_CLASS_NUMBER or android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL
-        input.setText(String.format(Locale.getDefault(), "%.2f", currentPitch))
+        // Force dot decimal separator in the dialog text
+        input.setText(String.format(Locale.US, "%.2f", currentPitch))
         AlertDialog.Builder(this)
             .setTitle("Set Pitch")
             .setMessage("Enter pitch value (0.50 - 2.50):")
             .setView(input)
             .setPositiveButton("OK") { _, _ ->
-                val text = input.text.toString()
+                val text = input.text.toString().replace(',', '.')
                 try {
                     val newPitch = text.toFloat().coerceIn(0.5f, 2.5f)
                     currentPitch = newPitch
@@ -580,12 +582,18 @@ class MainActivity : AppCompatActivity() {
             scanningStatus.text = "Scanning folders..."
             scanProgressBar.progress = 0
             folderCountLabel.text = "Scanned 0 of 0 folders"
+            // Disable search during loading to prevent user input until list is ready
+            searchEditText.isEnabled = false
+            searchEditText.hint = "Loading..."
         } else {
             loadingSpinner.visibility = View.GONE
             loadingText.visibility = View.GONE
             scanProgressBar.visibility = View.GONE
             scanningStatus.visibility = View.GONE
             folderCountLabel.visibility = View.GONE
+            // Re-enable search when loading finished
+            searchEditText.isEnabled = true
+            searchEditText.hint = "Search"
         }
     }
 
@@ -1220,12 +1228,9 @@ class MainActivity : AppCompatActivity() {
         private var currentlyPlaying: SongEntry? = null
         private val layoutInflater = LayoutInflater.from(context)
         
-        // Shared animator for synchronized scrolling
-        private var sharedAnimationTime: Long = 0
-        private var sharedAnimator: android.animation.ValueAnimator? = null
-        private val scrollingViews = mutableListOf<Pair<ScrollingTextView, ScrollingConfig>>()
+        // No automatic scrolling; allow manual horizontal swipe on each ScrollingTextView
         
-        data class ScrollingConfig(val textWidth: Float, val viewWidth: Float, val totalDistance: Float, val duration: Long, val isFirstLoop: Boolean)
+
 
         override fun getCount(): Int = currentFilteredSongs.size
         override fun getItem(position: Int): SongEntry? = currentFilteredSongs[position]
@@ -1295,62 +1300,11 @@ class MainActivity : AppCompatActivity() {
             val scrollDistance = textWidth + viewWidth
             val duration = (scrollDistance * 20).toLong().coerceAtLeast(5000)
             
-            // Register this view for synchronized scrolling
-            val config = ScrollingConfig(textWidth, viewWidth, scrollDistance, duration, true)
-            scrollingViews.add(Pair(textView, config))
-            
-            // Start shared animator if not already running
-            if (sharedAnimator == null) {
-                startSharedAnimator(duration)
-            }
+            // Manual swipe mode: nothing to register, individual view handles touch panning
+
         }
         
-        private fun startSharedAnimator(firstLoopDuration: Long) {
-            sharedAnimator = android.animation.ValueAnimator.ofFloat(0f, 1f)
-            sharedAnimator!!.duration = firstLoopDuration
-            sharedAnimator!!.addUpdateListener { animator ->
-                val progress = animator.animatedValue as Float
-                sharedAnimationTime = (progress * firstLoopDuration).toLong()
-                updateAllScrollingViews(sharedAnimationTime, firstLoopDuration, true)
-            }
-            sharedAnimator!!.addListener(object : AnimatorListenerAdapter() {
-                override fun onAnimationEnd(animation: android.animation.Animator) {
-                    // After first loop, start infinite loop with off-screen start
-                    if (scrollingViews.isNotEmpty()) {
-                        val loopDuration = scrollingViews[0].second.duration
-                        startInfiniteLoopAnimator(loopDuration)
-                    }
-                }
-            })
-            sharedAnimator!!.start()
-        }
-        
-        private fun startInfiniteLoopAnimator(loopDuration: Long) {
-            sharedAnimator = android.animation.ValueAnimator.ofFloat(0f, 1f)
-            sharedAnimator!!.duration = loopDuration
-            sharedAnimator!!.repeatCount = android.animation.ValueAnimator.INFINITE
-            sharedAnimator!!.repeatMode = android.animation.ValueAnimator.RESTART
-            sharedAnimator!!.addUpdateListener { animator ->
-                val progress = animator.animatedValue as Float
-                sharedAnimationTime = (progress * loopDuration).toLong()
-                updateAllScrollingViews(sharedAnimationTime, loopDuration, false)
-            }
-            sharedAnimator!!.start()
-        }
-        
-        private fun updateAllScrollingViews(currentTime: Long, duration: Long, isFirstLoop: Boolean) {
-            for ((view, config) in scrollingViews) {
-                val progress = currentTime.toFloat() / duration.toFloat()
-                val scrollPos = if (isFirstLoop) {
-                    // First loop: 0f to -totalDistance
-                    progress * (-config.totalDistance)
-                } else {
-                    // Subsequent loops: viewWidth to -textWidth
-                    config.viewWidth + progress * (-config.textWidth - config.viewWidth)
-                }
-                view.setScrollPosition(scrollPos)
-            }
-        }
+
 
         override fun getFilter(): Filter {
             return object : Filter() {
@@ -1434,6 +1388,9 @@ class MainActivity : AppCompatActivity() {
 
         Toast.makeText(this, logMessage, Toast.LENGTH_SHORT).show()
         Log.d(TAG, logMessage)
+        // Re-enable search input now that the list is refreshed
+        searchEditText.isEnabled = true
+        searchEditText.hint = "Search"
     }
 
     private fun saveSongsToFile() = lifecycleScope.launch(Dispatchers.IO) {
@@ -1497,10 +1454,19 @@ class ScrollingTextView @JvmOverloads constructor(
     
     private var text: String = ""
     private var scrollX: Float = 0f
+
+    // Touch handling
+    private var lastTouchX: Float = 0f
+    private var isDragging: Boolean = false
     
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
         canvas.drawText(text, scrollX, (height * 0.7f), paint)
+    }
+
+    override fun performClick(): Boolean {
+        super.performClick()
+        return true
     }
     
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
@@ -1513,6 +1479,8 @@ class ScrollingTextView @JvmOverloads constructor(
     
     fun setText(newText: String) {
         text = newText
+        // Reset scroll so new text starts at left
+        scrollX = 0f
         invalidate()
     }
     
@@ -1522,6 +1490,40 @@ class ScrollingTextView @JvmOverloads constructor(
     }
     
     fun measureText(text: String): Float = paint.measureText(text)
+
+    override fun onTouchEvent(event: android.view.MotionEvent): Boolean {
+        // Allow horizontal panning when text is wider than available view
+        val textWidth = measureText(text)
+        val visibleWidth = (width - paddingLeft - paddingRight).toFloat()
+        if (textWidth <= visibleWidth) return false
+
+        when (event.actionMasked) {
+            android.view.MotionEvent.ACTION_DOWN -> {
+                lastTouchX = event.x
+                isDragging = false
+                parent?.requestDisallowInterceptTouchEvent(true)
+                performClick()
+                return true
+            }
+            android.view.MotionEvent.ACTION_MOVE -> {
+                val dx = event.x - lastTouchX
+                if (!isDragging && kotlin.math.abs(dx) > 4f) isDragging = true
+                if (isDragging) {
+                    lastTouchX = event.x
+                    val minScroll = -(textWidth - visibleWidth)
+                    scrollX = (scrollX + dx).coerceIn(minScroll, 0f)
+                    invalidate()
+                    return true
+                }
+            }
+            android.view.MotionEvent.ACTION_UP, android.view.MotionEvent.ACTION_CANCEL -> {
+                isDragging = false
+                parent?.requestDisallowInterceptTouchEvent(false)
+                return true
+            }
+        }
+        return super.onTouchEvent(event)
+    }
     
     // Property for ObjectAnimator
     @Suppress("UNUSED")

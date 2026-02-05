@@ -14,6 +14,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.os.PowerManager
 import android.text.Editable
 import android.text.TextWatcher
 import android.util.AttributeSet
@@ -119,6 +120,7 @@ class MainActivity : AppCompatActivity() {
     private var currentPitch = 1.0f
     private var currentIndex = 0
     private var mediaPlayer: MediaPlayer? = null
+    private var wakeLock: PowerManager.WakeLock? = null
     private var currentDirUri: Uri? = null
     private var isUserSeeking = false
     private val handler = Handler(Looper.getMainLooper())
@@ -171,6 +173,10 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setupCrashHandler()
         setContentView(R.layout.activity_main)
+        
+        // Initialize WakeLock to keep device awake during playback
+        val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
+        wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "OsuTunes:playback")
 
         initViews()
         setupListeners()
@@ -650,10 +656,20 @@ class MainActivity : AppCompatActivity() {
                 if (mediaPlayer!!.isPlaying) {
                     mediaPlayer!!.pause()
                     playButton.text = "▶"
+                    // Release wakelock when pausing
+                    if (wakeLock != null && wakeLock!!.isHeld) {
+                        wakeLock!!.release()
+                        Log.d(TAG, "WakeLock released on pause")
+                    }
                 } else {
                     mediaPlayer!!.start()
                     applyPlaybackParams()
                     playButton.text = "⏸"
+                    // Acquire wakelock when resuming
+                    if (wakeLock != null && !wakeLock!!.isHeld) {
+                        wakeLock!!.acquire()
+                        Log.d(TAG, "WakeLock acquired on resume")
+                    }
                 }
             } catch (e: IllegalStateException) {
                 Log.e(TAG, "IllegalStateException during togglePlayback.", e)
@@ -698,6 +714,11 @@ class MainActivity : AppCompatActivity() {
 
         try {
             mediaPlayer?.release()
+            // Release wakelock when switching songs
+            if (wakeLock != null && wakeLock!!.isHeld) {
+                wakeLock!!.release()
+                Log.d(TAG, "WakeLock released on song switch")
+            }
         } catch (e: Exception) {
             Log.w(TAG, "Error releasing old media player.", e)
         }
@@ -721,6 +742,13 @@ class MainActivity : AppCompatActivity() {
             mediaPlayer!!.setOnPreparedListener {
                 applyPlaybackParams()
                 it.start()
+                
+                // Acquire wakelock to keep device awake during playback
+                if (wakeLock != null && !wakeLock!!.isHeld) {
+                    wakeLock!!.acquire()
+                    Log.d(TAG, "WakeLock acquired for playback")
+                }
+                
                 playButton.text = "⏸"
                 
                 // Show now playing bar and highlight song
@@ -739,6 +767,11 @@ class MainActivity : AppCompatActivity() {
             mediaPlayer!!.setOnErrorListener { _, what, extra ->
                  Log.e(TAG, "MediaPlayer Error: what=$what, extra=$extra for ${songEntry.label}")
                  Toast.makeText(this, "Playback Error ($what).", Toast.LENGTH_LONG).show()
+                 // Release wakelock on error
+                 if (wakeLock != null && wakeLock!!.isHeld) {
+                     wakeLock!!.release()
+                     Log.d(TAG, "WakeLock released on playback error")
+                 }
                  mediaPlayer?.release()
                  mediaPlayer = null
                  playButton.text = "▶"
@@ -759,6 +792,11 @@ class MainActivity : AppCompatActivity() {
         } catch (e: Exception) {
             Toast.makeText(this, "Fatal error setting up player for: ${songEntry.label}", Toast.LENGTH_LONG).show()
             Log.e(TAG, "Failed to setup media player.", e)
+            // Release wakelock on exception
+            if (wakeLock != null && wakeLock!!.isHeld) {
+                wakeLock!!.release()
+                Log.d(TAG, "WakeLock released on exception")
+            }
             mediaPlayer?.release()
             mediaPlayer = null
             playButton.text = "▶"
@@ -1433,6 +1471,13 @@ class MainActivity : AppCompatActivity() {
         savePlaybackSetting(TEMPO_KEY, currentTempo)
         savePlaybackSetting(PITCH_KEY, currentPitch)
         handler.removeCallbacks(updateSeekBar)
+        
+        // Release wakelock
+        if (wakeLock != null && wakeLock!!.isHeld) {
+            wakeLock!!.release()
+            Log.d(TAG, "WakeLock released on activity destroy")
+        }
+        
         mediaPlayer?.release()
         mediaPlayer = null
         Log.d(TAG, "App destroyed, media player released")

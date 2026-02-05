@@ -3,6 +3,9 @@
 
     <!-- Permission to read external storage -->
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+    
+    <!-- Permission for wakelock to keep device awake during playback -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
 
     <application
         android:allowBackup="true"

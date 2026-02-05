@@ -161,8 +161,20 @@ class MainActivity : AppCompatActivity() {
                     uris.add(data.clipData!!.getItemAt(i).uri)
                 }
             }
-            if (uris.isNotEmpty() && currentDirUri != null) {
-                importOszFiles(uris, currentDirUri!!)
+            
+            // Filter to only accept .osz files
+            val otherUris = uris.filter { uri ->
+                val fileName = DocumentFile.fromSingleUri(this, uri)?.name.orEmpty()
+                fileName.endsWith(".osz", ignoreCase = true)
+            }
+            
+            if (otherUris.isEmpty()) {
+                Toast.makeText(this, "Please select only .osz files.", Toast.LENGTH_SHORT).show()
+                return@registerForActivityResult
+            }
+            
+            if (otherUris.isNotEmpty() && currentDirUri != null) {
+                importOszFiles(otherUris, currentDirUri!!)
             } else if (currentDirUri == null) {
                 Toast.makeText(this, "Please select the 'Songs' folder first.", Toast.LENGTH_LONG).show()
             }
@@ -270,7 +282,7 @@ class MainActivity : AppCompatActivity() {
             val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
                 addCategory(Intent.CATEGORY_OPENABLE)
                 type = "*/*"
-                putExtra(Intent.EXTRA_MIME_TYPES, arrayOf("application/zip", "application/octet-stream", "application/x-osu-beatmap"))
+                putExtra(Intent.EXTRA_MIME_TYPES, arrayOf("application/zip", "application/octet-stream"))
                 putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
             }
             oszPickerLauncher.launch(intent)

@@ -12,9 +12,11 @@ import android.media.PlaybackParams
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import com.example.osutunes.PlaybackService
 import android.os.Handler
 import android.os.Looper
 import android.os.PowerManager
+
 import android.text.Editable
 import android.text.TextWatcher
 import android.util.AttributeSet
@@ -120,7 +122,6 @@ class MainActivity : AppCompatActivity() {
     private var currentPitch = 1.0f
     private var currentIndex = 0
     private var mediaPlayer: MediaPlayer? = null
-    private var wakeLock: PowerManager.WakeLock? = null
     private var currentDirUri: Uri? = null
     private var isUserSeeking = false
     private val handler = Handler(Looper.getMainLooper())
@@ -186,9 +187,6 @@ class MainActivity : AppCompatActivity() {
         setupCrashHandler()
         setContentView(R.layout.activity_main)
         
-        // Initialize WakeLock to keep device awake during playback
-        val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
-        wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "OsuTunes:playback")
 
         initViews()
         setupListeners()
@@ -502,6 +500,55 @@ class MainActivity : AppCompatActivity() {
             .show()
     }
 
+    // helpers for controlling the foreground wakelock service -----------------------
+    // we keep a simple fallback wakelock in case the service cannot be started
+    private var fallbackWakeLock: PowerManager.WakeLock? = null
+
+    private fun startPlaybackService() {
+        val intent = Intent(this, PlaybackService::class.java).apply { action = PlaybackService.ACTION_START }
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                startForegroundService(intent)
+            } else {
+                startService(intent)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Unable to start playback service, using local wakelock", e)
+            // fallback to simple wakelock so the CPU stays awake
+            try {
+                val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
+                if (fallbackWakeLock == null) {
+                    fallbackWakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "OsuTunes:local")
+                    fallbackWakeLock?.setReferenceCounted(false)
+                }
+                if (fallbackWakeLock?.isHeld == false) {
+                    fallbackWakeLock?.acquire()
+                    Log.d(TAG, "Fallback wakelock acquired")
+                }
+            } catch (inner: Exception) {
+                Log.e(TAG, "Failed to acquire fallback wakelock", inner)
+            }
+        }
+    }
+
+    private fun stopPlaybackService() {
+        val intent = Intent(this, PlaybackService::class.java).apply { action = PlaybackService.ACTION_STOP }
+        try {
+            startService(intent)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error sending stop to playback service", e)
+        }
+        // release fallback lock if held
+        try {
+            if (fallbackWakeLock?.isHeld == true) {
+                fallbackWakeLock?.release()
+                Log.d(TAG, "Fallback wakelock released")
+            }
+        } catch (inner: Exception) {
+            Log.e(TAG, "Error releasing fallback wakelock", inner)
+        }
+    }
+
     private fun loadInitialData() {
         val savedUriString = getSharedPreferences(PREFS_NAME, MODE_PRIVATE).getString(SAVED_URI_KEY, null)
         if (savedUriString != null) {
@@ -668,20 +715,12 @@ class MainActivity : AppCompatActivity() {
                 if (mediaPlayer!!.isPlaying) {
                     mediaPlayer!!.pause()
                     playButton.text = "▶"
-                    // Release wakelock when pausing
-                    if (wakeLock != null && wakeLock!!.isHeld) {
-                        wakeLock!!.release()
-                        Log.d(TAG, "WakeLock released on pause")
-                    }
+                    stopPlaybackService()
                 } else {
                     mediaPlayer!!.start()
                     applyPlaybackParams()
                     playButton.text = "⏸"
-                    // Acquire wakelock when resuming
-                    if (wakeLock != null && !wakeLock!!.isHeld) {
-                        wakeLock!!.acquire()
-                        Log.d(TAG, "WakeLock acquired on resume")
-                    }
+                    startPlaybackService()
                 }
             } catch (e: IllegalStateException) {
                 Log.e(TAG, "IllegalStateException during togglePlayback.", e)
@@ -726,11 +765,8 @@ class MainActivity : AppCompatActivity() {
 
         try {
             mediaPlayer?.release()
-            // Release wakelock when switching songs
-            if (wakeLock != null && wakeLock!!.isHeld) {
-                wakeLock!!.release()
-                Log.d(TAG, "WakeLock released on song switch")
-            }
+            // stop service when switching songs (it will be restarted when new track begins)
+            stopPlaybackService()
         } catch (e: Exception) {
             Log.w(TAG, "Error releasing old media player.", e)
         }
@@ -755,11 +791,8 @@ class MainActivity : AppCompatActivity() {
                 applyPlaybackParams()
                 it.start()
                 
-                // Acquire wakelock to keep device awake during playback
-                if (wakeLock != null && !wakeLock!!.isHeld) {
-                    wakeLock!!.acquire()
-                    Log.d(TAG, "WakeLock acquired for playback")
-                }
+                // start foreground service which acquires a strong wakelock
+                startPlaybackService()
                 
                 playButton.text = "⏸"
                 
@@ -779,11 +812,8 @@ class MainActivity : AppCompatActivity() {
             mediaPlayer!!.setOnErrorListener { _, what, extra ->
                  Log.e(TAG, "MediaPlayer Error: what=$what, extra=$extra for ${songEntry.label}")
                  Toast.makeText(this, "Playback Error ($what).", Toast.LENGTH_LONG).show()
-                 // Release wakelock on error
-                 if (wakeLock != null && wakeLock!!.isHeld) {
-                     wakeLock!!.release()
-                     Log.d(TAG, "WakeLock released on playback error")
-                 }
+                 // stop service which will release the wakelock
+                 stopPlaybackService()
                  mediaPlayer?.release()
                  mediaPlayer = null
                  playButton.text = "▶"
@@ -804,11 +834,8 @@ class MainActivity : AppCompatActivity() {
         } catch (e: Exception) {
             Toast.makeText(this, "Fatal error setting up player for: ${songEntry.label}", Toast.LENGTH_LONG).show()
             Log.e(TAG, "Failed to setup media player.", e)
-            // Release wakelock on exception
-            if (wakeLock != null && wakeLock!!.isHeld) {
-                wakeLock!!.release()
-                Log.d(TAG, "WakeLock released on exception")
-            }
+            // stop service in case it had been started
+            stopPlaybackService()
             mediaPlayer?.release()
             mediaPlayer = null
             playButton.text = "▶"
@@ -1360,14 +1387,14 @@ class MainActivity : AppCompatActivity() {
             return object : Filter() {
                 override fun performFiltering(constraint: CharSequence?): FilterResults {
                     val results = FilterResults()
-                    val query = constraint.toString().toLowerCase(Locale.getDefault()).trim()
+                    val query = constraint.toString().lowercase(Locale.getDefault()).trim()
                     val filteredList = if (query.isEmpty()) {
                         allSongs
                     } else {
                         allSongs.filter { song ->
                             // Search in title and artist
-                            val matchesText = song.title.toLowerCase(Locale.getDefault()).contains(query) ||
-                                            song.artist.toLowerCase(Locale.getDefault()).contains(query)
+                            val matchesText = song.title.lowercase(Locale.getDefault()).contains(query) ||
+                                            song.artist.lowercase(Locale.getDefault()).contains(query)
                             
                             // Search by BPM (exact or approximate)
                             val matchesBpm = if (song.bpm != null) {
@@ -1413,8 +1440,8 @@ class MainActivity : AppCompatActivity() {
 
         fun sortSongs(sortBy: String) {
             allSongs = when (sortBy) {
-                "Title" -> allSongs.sortedBy { it.title.toLowerCase(Locale.getDefault()) }
-                "Artist" -> allSongs.sortedBy { it.artist.toLowerCase(Locale.getDefault()) }
+                "Title" -> allSongs.sortedBy { it.title.lowercase(Locale.getDefault()) }
+                "Artist" -> allSongs.sortedBy { it.artist.lowercase(Locale.getDefault()) }
                 "Versions" -> allSongs.sortedByDescending { it.label.count { c -> c == '(' } }
                 "BPM" -> allSongs.sortedBy { it.bpm ?: 0.0 }
                 else -> allSongs
@@ -1483,13 +1510,8 @@ class MainActivity : AppCompatActivity() {
         savePlaybackSetting(TEMPO_KEY, currentTempo)
         savePlaybackSetting(PITCH_KEY, currentPitch)
         handler.removeCallbacks(updateSeekBar)
-        
-        // Release wakelock
-        if (wakeLock != null && wakeLock!!.isHeld) {
-            wakeLock!!.release()
-            Log.d(TAG, "WakeLock released on activity destroy")
-        }
-        
+        // ensure service is stopped as part of teardown
+        stopPlaybackService()
         mediaPlayer?.release()
         mediaPlayer = null
         Log.d(TAG, "App destroyed, media player released")

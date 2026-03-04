@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="sort_options">
+        <item>Title</item>
+        <item>Artist</item>
+        <item>Versions</item>
+    </string-array>
+    <string name="app_name">osu!tunes</string>
+    <string name="choose_folder">📁 Choose Folder</string>
+    <string name="loading_songs">Loading songs...</string>
+    <string name="next">⏭</string>
+    <string name="no_songs">No songs found in this folder</string>
+    <string name="pause">⏸</string>
+    <string name="play">▶</string>
+    <string name="previous">⏮</string>
+    <style name="Theme.OsuTunes.Dark" parent="Theme.MaterialComponents.DayNight.DarkActionBar">
+        
+        <item name="colorPrimary">#BB86FC</item>
+        <item name="colorPrimaryVariant">#3700B3</item>
+        <item name="colorOnPrimary">#FFFFFF</item>
+        <item name="colorSecondary">#03DAC5</item>
+        <item name="android:windowBackground">#121212</item>
+        <item name="android:statusBarColor">#000000</item>
+        <item name="android:navigationBarColor">#000000</item>
+        <item name="android:textColor">#FFFFFF</item>
+    </style>
+</resources>

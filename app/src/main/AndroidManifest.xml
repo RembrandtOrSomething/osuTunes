@@ -6,6 +6,8 @@
     
     <!-- Permission for wakelock to keep device awake during playback -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <!-- needed when starting a foreground service on API 28+ -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
 
     <application
         android:allowBackup="true"
@@ -23,6 +25,12 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        
+        <!-- service keeps a strong wakelock during playback and handles task removal -->
+        <service
+            android:name=".PlaybackService"
+            android:exported="false"
+            android:foregroundServiceType="mediaPlayback" />
     </application>
 
 </manifest>

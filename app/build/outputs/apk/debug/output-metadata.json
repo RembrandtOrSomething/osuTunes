@@ -12,9 +12,10 @@
       "filters": [],
       "attributes": [],
       "versionCode": 4,
-      "versionName": "4.0.20_wl+osz",
+      "versionName": "4.0.20_wl2+osz",
       "outputFile": "app-debug.apk"
     }
   ],
-  "elementType": "File"
+  "elementType": "File",
+  "minSdkVersionForDexing": 24
 }

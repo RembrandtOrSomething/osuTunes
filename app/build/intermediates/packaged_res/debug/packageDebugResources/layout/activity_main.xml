@@ -1,0 +1,345 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp"
+    android:background="#1E1E2E"> 
+
+    <!-- Now Playing Bar -->
+    <LinearLayout
+        android:id="@+id/nowPlayingBar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:background="#313244"
+        android:padding="8dp"
+        android:visibility="gone"
+        android:layout_marginBottom="8dp">
+
+        <TextView
+            android:id="@+id/nowPlayingText"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Now Playing: "
+            android:textColor="#CBA6F7"
+            android:textSize="12sp"
+            android:ellipsize="end"
+            android:maxLines="1"/>
+
+        <Button
+            android:id="@+id/nowPlayingClose"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="✕"
+            android:textSize="10sp"
+            android:backgroundTint="#F38BA8"
+            android:layout_marginStart="8dp"/>
+
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/loadingText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Loading songs..."
+        android:textSize="18sp"
+        android:textColor="#CBA6F7"
+        android:layout_gravity="center"
+        android:visibility="gone"
+        android:layout_marginBottom="4dp"/>
+
+    <ProgressBar
+        android:id="@+id/loadingSpinner"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:visibility="gone"
+        style="?android:attr/progressBarStyleSmall"
+        android:indeterminateTint="#A6E3A1"/>
+
+    <ProgressBar
+        android:id="@+id/scanProgressBar"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:max="100"
+        android:progress="0"
+        android:visibility="gone"
+        android:layout_marginTop="8dp"
+        android:progressTint="#FAB387"/>
+
+    <TextView
+        android:id="@+id/scanningStatus"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Scanning folder..."
+        android:textColor="#BAC2DE"
+        android:visibility="gone"
+        android:gravity="center"
+        android:textSize="12sp"/>
+
+    <TextView
+        android:id="@+id/folderCountLabel"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Scanned 0 of 0 folders"
+        android:textColor="#BAC2DE"
+        android:visibility="gone"
+        android:gravity="center"
+        android:textSize="12sp"
+        android:layout_marginBottom="16dp"/>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:layout_marginBottom="8dp">
+
+        <Button
+            android:id="@+id/folderButton"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:text="Select Folder"
+            android:textSize="12sp"
+            android:layout_marginEnd="4dp"
+            android:backgroundTint="#89B4FA"/>
+
+        <Button
+            android:id="@+id/reloadButton"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:text="Reload"
+            android:textSize="12sp"
+            android:layout_marginEnd="4dp"
+            android:backgroundTint="#F38BA8"/>
+
+        <Button
+            android:id="@+id/importOszButton"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:text="Import .osz"
+            android:textSize="12sp"
+            android:backgroundTint="#A6E3A1"/>
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginBottom="8dp">
+
+        <Spinner
+            android:id="@+id/sortSpinner"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:entries="@array/sort_options"
+            android:backgroundTint="#F9E2AF"/>
+
+        <EditText
+            android:id="@+id/searchEditText"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:hint="Search Title or Artist"
+            android:textColorHint="#6C7086"
+            android:textColor="#BAC2DE"
+            android:inputType="text"
+            android:paddingStart="8dp"
+            android:background="@drawable/rounded_edittext_bg"/>
+
+    </LinearLayout>
+
+    <ListView
+        android:id="@+id/songList"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:divider="#45475A"
+        android:dividerHeight="1dp"
+        android:background="#24273A"
+        android:padding="4dp"/>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginTop="8dp">
+
+        <TextView
+            android:id="@+id/currentTimeTextView"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="0:00"
+            android:textColor="#BAC2DE"
+            android:textSize="12sp"
+            android:paddingEnd="4dp"/>
+
+        <SeekBar
+            android:id="@+id/songSeekBar"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:progressTint="#CBA6F7"
+            android:thumbTint="#CBA6F7"/>
+
+        <TextView
+            android:id="@+id/totalTimeTextView"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="0:00"
+            android:textColor="#BAC2DE"
+            android:textSize="12sp"
+            android:paddingStart="4dp"/>
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginTop="8dp"
+        android:paddingStart="8dp"
+        android:paddingEnd="8dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Tempo:"
+            android:textColor="#BAC2DE"
+            android:textSize="14sp"/>
+
+        <TextView
+            android:id="@+id/tempoTextView"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="1.00x"
+            android:textColor="#CBA6F7"
+            android:textSize="14sp"
+            android:layout_marginStart="4dp"
+            android:layout_marginEnd="8dp"/>
+
+        <SeekBar
+            android:id="@+id/tempoSeekBar"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:max="400"
+            android:progress="100"
+            android:progressTint="#CBA6F7"
+            android:thumbTint="#CBA6F7"/>
+
+        <Button
+            android:id="@+id/tempoResetButton"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:text="1x"
+            android:textSize="10sp"
+            android:layout_marginStart="8dp"
+            android:backgroundTint="#CBA6F7"
+            android:longClickable="true"/>
+
+    </LinearLayout>
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginTop="4dp"
+        android:paddingStart="8dp"
+        android:paddingEnd="8dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Pitch:"
+            android:textColor="#BAC2DE"
+            android:textSize="14sp"/>
+
+        <TextView
+            android:id="@+id/pitchTextView"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="1.00x"
+            android:textColor="#F38BA8"
+            android:textSize="14sp"
+            android:layout_marginStart="4dp"
+            android:layout_marginEnd="8dp"/>
+
+        <SeekBar
+            android:id="@+id/pitchSeekBar"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:max="400"
+            android:progress="100"
+            android:progressTint="#F38BA8"
+            android:thumbTint="#F38BA8"/>
+
+        <Button
+            android:id="@+id/pitchResetButton"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:text="1x"
+            android:textSize="10sp"
+            android:layout_marginStart="8dp"
+            android:backgroundTint="#F38BA8"
+            android:longClickable="true"/>
+
+    </LinearLayout>
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:layout_marginTop="8dp">
+
+        <Button
+            android:id="@+id/shuffleButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="🔀 Off"
+            android:backgroundTint="#F9E2AF"
+            android:layout_marginEnd="8dp"/>
+
+        <Button
+            android:id="@+id/repeatButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="🔁 Off"
+            android:backgroundTint="#F9E2AF"
+            android:layout_marginEnd="16dp"/>
+
+        <Button
+            android:id="@+id/prevButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="⏮"
+            android:backgroundTint="#89B4FA"
+            android:layout_marginEnd="8dp"/>
+
+        <Button
+            android:id="@+id/playButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="▶"
+            android:backgroundTint="#A6E3A1"
+            android:layout_marginEnd="8dp"/>
+
+        <Button
+            android:id="@+id/nextButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="⏭"
+            android:backgroundTint="#89B4FA"/>
+    </LinearLayout>
+</LinearLayout>

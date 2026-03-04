@@ -1,0 +1,26 @@
+[
+    {
+        "merged": "com.example.osutunes.app-debug-34:/drawable_rounded_edittext_bg.xml.flat",
+        "source": "com.example.osutunes.app-main-36:/drawable/rounded_edittext_bg.xml"
+    },
+    {
+        "merged": "com.example.osutunes.app-debug-34:/layout_activity_main.xml.flat",
+        "source": "com.example.osutunes.app-main-36:/layout/activity_main.xml"
+    },
+    {
+        "merged": "com.example.osutunes.app-debug-34:/layout_list_item_song.xml.flat",
+        "source": "com.example.osutunes.app-main-36:/layout/list_item_song.xml"
+    },
+    {
+        "merged": "com.example.osutunes.app-debug-34:/layout_dialog_playback_settings.xml.flat",
+        "source": "com.example.osutunes.app-main-36:/layout/dialog_playback_settings.xml"
+    },
+    {
+        "merged": "com.example.osutunes.app-debug-34:/drawable_background_image.jpg.flat",
+        "source": "com.example.osutunes.app-main-36:/drawable/background_image.jpg"
+    },
+    {
+        "merged": "com.example.osutunes.app-debug-34:/drawable_ic_music_note.xml.flat",
+        "source": "com.example.osutunes.app-main-36:/drawable/ic_music_note.xml"
+    }
+]

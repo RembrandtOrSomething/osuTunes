@@ -4,9 +4,12 @@ buildscript {
         mavenCentral()
     }
     dependencies {
-        classpath "com.android.tools.build:gradle:8.1.1"
-        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.10"
-        classpath "org.jetbrains.kotlin:kotlin-serialization:1.9.10"
+        // AGP 9.x is required for Gradle 9.x compatibility
+        // use AGP 9.0.0, which is compatible with Gradle 9.x and available in Google Maven
+        classpath "com.android.tools.build:gradle:9.0.0"
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.20"
+        // also add serialization plugin to classpath so it can be applied manually
+        classpath "org.jetbrains.kotlin:kotlin-serialization:1.9.20"
     }
 }
 

@@ -66,14 +66,14 @@ class SongAdapter(
         return object : Filter() {
             override fun performFiltering(constraint: CharSequence?): FilterResults {
                 val results = FilterResults()
-                val query = constraint.toString().toLowerCase(Locale.getDefault()).trim()
+                val query = constraint.toString().lowercase(Locale.getDefault()).trim()
 
                 val filteredList = if (query.isEmpty()) {
                     allSongs 
                 } else {
                     allSongs.filter { 
-                        it.title.toLowerCase(Locale.getDefault()).contains(query) ||
-                        it.artist.toLowerCase(Locale.getDefault()).contains(query)
+                        it.title.lowercase(Locale.getDefault()).contains(query) ||
+                        it.artist.lowercase(Locale.getDefault()).contains(query)
                     }
                 }
                 results.values = filteredList
@@ -94,8 +94,8 @@ class SongAdapter(
     fun sortSongs(sortBy: String) {
         // Re-sort the master list
         val sortedList = when (sortBy) {
-            "Title" -> allSongs.sortedBy { it.title.toLowerCase(Locale.getDefault()) }
-            "Artist" -> allSongs.sortedBy { it.artist.toLowerCase(Locale.getDefault()) }
+            "Title" -> allSongs.sortedBy { it.title.lowercase(Locale.getDefault()) }
+            "Artist" -> allSongs.sortedBy { it.artist.lowercase(Locale.getDefault()) }
             "Versions" -> allSongs.sortedByDescending { it.label.count { c -> c == '(' } } // Proxy for version count
             else -> allSongs // Default: No sorting
         }

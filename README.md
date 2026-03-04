@@ -1,4 +1,4 @@
-java17 gradle9.2.0 and androidsdk34 as for final update, for compability to older versions of android.
+~~java17 gradle9.2.0 and androidsdk34 as for final update, for compability to older versions of android.~~ i dont even know what it used anymore
 
 do whatever the fk you want with this code, it's not mine to begin with. (made using gemini, fkin' copilot and chatgpt, the unholy trinity)
 

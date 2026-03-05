@@ -80,10 +80,9 @@ class PlaybackService : Service() {
             wakeLock?.setReferenceCounted(false)
         }
         if (wakeLock?.isHeld == false) {
-            // acquire indefinitely - we explicitly release when playback stops
-            // Required for Android 15+ aggressive task killing prevention
-            wakeLock?.acquire()
-            Log.d(TAG, "WakeLock acquired indefinitely in service")
+            // acquire without timeout (since we release explicitly), but guard with a long timeout
+            wakeLock?.acquire(10 * 60 * 1000L)
+            Log.d(TAG, "WakeLock acquired in service")
         }
     }
 

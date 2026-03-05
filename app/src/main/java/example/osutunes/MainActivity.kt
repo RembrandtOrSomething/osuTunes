@@ -518,13 +518,12 @@ class MainActivity : AppCompatActivity() {
             try {
                 val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
                 if (fallbackWakeLock == null) {
-                    fallbackWakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK or PowerManager.ON_AFTER_RELEASE, "OsuTunes:local")
+                    fallbackWakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "OsuTunes:local")
                     fallbackWakeLock?.setReferenceCounted(false)
                 }
                 if (fallbackWakeLock?.isHeld == false) {
-                    // Acquire indefinitely to combat Android 15 aggressive task killing
                     fallbackWakeLock?.acquire()
-                    Log.d(TAG, "Fallback wakelock acquired indefinitely")
+                    Log.d(TAG, "Fallback wakelock acquired")
                 }
             } catch (inner: Exception) {
                 Log.e(TAG, "Failed to acquire fallback wakelock", inner)

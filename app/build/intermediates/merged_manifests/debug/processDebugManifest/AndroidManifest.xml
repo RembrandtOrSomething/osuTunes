@@ -2,21 +2,19 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.example.osutunes"
     android:versionCode="4"
-    android:versionName="4.0.20_wl2.5+osz" >
+    android:versionName="4.0.20_wl2+osz" >
 
     <uses-sdk
         android:minSdkVersion="24"
-        android:targetSdkVersion="35" />
+        android:targetSdkVersion="34" />
 
     <!-- Permission to read external storage -->
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
 
     <!-- Permission for wakelock to keep device awake during playback -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />
-    <!-- Needed when starting a foreground service on API 28+ -->
+    <!-- needed when starting a foreground service on API 28+ -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <!-- Required for Android 12+ foreground service media playback enforcement -->
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
 
     <permission
         android:name="com.example.osutunes.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"

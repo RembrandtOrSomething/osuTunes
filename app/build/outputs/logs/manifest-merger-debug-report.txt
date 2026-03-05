@@ -1,9 +1,9 @@
 -- Merging decision tree log ---
 manifest
-ADDED from /workspaces/osuTunes/app/src/main/AndroidManifest.xml:2:1-38:12
-INJECTED from /workspaces/osuTunes/app/src/main/AndroidManifest.xml:2:1-38:12
-INJECTED from /workspaces/osuTunes/app/src/main/AndroidManifest.xml:2:1-38:12
-INJECTED from /workspaces/osuTunes/app/src/main/AndroidManifest.xml:2:1-38:12
+ADDED from /workspaces/osuTunes/app/src/main/AndroidManifest.xml:2:1-36:12
+INJECTED from /workspaces/osuTunes/app/src/main/AndroidManifest.xml:2:1-36:12
+INJECTED from /workspaces/osuTunes/app/src/main/AndroidManifest.xml:2:1-36:12
+INJECTED from /workspaces/osuTunes/app/src/main/AndroidManifest.xml:2:1-36:12
 MERGED from [com.google.android.material:material:1.9.0] /home/codespace/.gradle/caches/9.2.1/transforms/6a1f4dd054ef3bc41a50399b8b4dcc05/transformed/material-1.9.0/AndroidManifest.xml:17:1-26:12
 MERGED from [androidx.constraintlayout:constraintlayout:2.1.4] /home/codespace/.gradle/caches/9.2.1/transforms/61dda542fc3041a6341a8be90d369905/transformed/constraintlayout-2.1.4/AndroidManifest.xml:2:1-11:12
 MERGED from [androidx.appcompat:appcompat-resources:1.6.1] /home/codespace/.gradle/caches/9.2.1/transforms/ad9e29ca1530255c1ee9feaf81335521/transformed/jetified-appcompat-resources-1.6.1/AndroidManifest.xml:17:1-22:12
@@ -69,13 +69,9 @@ uses-permission#android.permission.FOREGROUND_SERVICE
 ADDED from /workspaces/osuTunes/app/src/main/AndroidManifest.xml:10:5-77
 	android:name
 		ADDED from /workspaces/osuTunes/app/src/main/AndroidManifest.xml:10:22-74
-uses-permission#android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK
-ADDED from /workspaces/osuTunes/app/src/main/AndroidManifest.xml:12:5-92
-	android:name
-		ADDED from /workspaces/osuTunes/app/src/main/AndroidManifest.xml:12:22-89
 application
-ADDED from /workspaces/osuTunes/app/src/main/AndroidManifest.xml:14:5-36:19
-INJECTED from /workspaces/osuTunes/app/src/main/AndroidManifest.xml:14:5-36:19
+ADDED from /workspaces/osuTunes/app/src/main/AndroidManifest.xml:12:5-34:19
+INJECTED from /workspaces/osuTunes/app/src/main/AndroidManifest.xml:12:5-34:19
 MERGED from [com.google.android.material:material:1.9.0] /home/codespace/.gradle/caches/9.2.1/transforms/6a1f4dd054ef3bc41a50399b8b4dcc05/transformed/material-1.9.0/AndroidManifest.xml:24:5-20
 MERGED from [com.google.android.material:material:1.9.0] /home/codespace/.gradle/caches/9.2.1/transforms/6a1f4dd054ef3bc41a50399b8b4dcc05/transformed/material-1.9.0/AndroidManifest.xml:24:5-20
 MERGED from [androidx.constraintlayout:constraintlayout:2.1.4] /home/codespace/.gradle/caches/9.2.1/transforms/61dda542fc3041a6341a8be90d369905/transformed/constraintlayout-2.1.4/AndroidManifest.xml:9:5-20
@@ -97,41 +93,41 @@ MERGED from [androidx.startup:startup-runtime:1.1.1] /home/codespace/.gradle/cac
 	android:appComponentFactory
 		ADDED from [androidx.core:core:1.12.0] /home/codespace/.gradle/caches/9.2.1/transforms/f2fdf766ef8ef0a73623ea6082bd8aa8/transformed/core-1.12.0/AndroidManifest.xml:28:18-86
 	android:supportsRtl
-		ADDED from /workspaces/osuTunes/app/src/main/AndroidManifest.xml:19:9-35
+		ADDED from /workspaces/osuTunes/app/src/main/AndroidManifest.xml:17:9-35
 	android:label
-		ADDED from /workspaces/osuTunes/app/src/main/AndroidManifest.xml:16:9-34
+		ADDED from /workspaces/osuTunes/app/src/main/AndroidManifest.xml:14:9-34
 	android:roundIcon
-		ADDED from /workspaces/osuTunes/app/src/main/AndroidManifest.xml:18:9-52
+		ADDED from /workspaces/osuTunes/app/src/main/AndroidManifest.xml:16:9-52
 	android:icon
-		ADDED from /workspaces/osuTunes/app/src/main/AndroidManifest.xml:17:9-47
+		ADDED from /workspaces/osuTunes/app/src/main/AndroidManifest.xml:15:9-47
 	android:allowBackup
-		ADDED from /workspaces/osuTunes/app/src/main/AndroidManifest.xml:15:9-35
+		ADDED from /workspaces/osuTunes/app/src/main/AndroidManifest.xml:13:9-35
 	android:theme
-		ADDED from /workspaces/osuTunes/app/src/main/AndroidManifest.xml:20:9-51
+		ADDED from /workspaces/osuTunes/app/src/main/AndroidManifest.xml:18:9-51
 activity#com.example.osutunes.MainActivity
-ADDED from /workspaces/osuTunes/app/src/main/AndroidManifest.xml:22:9-29:20
+ADDED from /workspaces/osuTunes/app/src/main/AndroidManifest.xml:20:9-27:20
 	android:exported
-		ADDED from /workspaces/osuTunes/app/src/main/AndroidManifest.xml:24:13-36
+		ADDED from /workspaces/osuTunes/app/src/main/AndroidManifest.xml:22:13-36
 	android:name
-		ADDED from /workspaces/osuTunes/app/src/main/AndroidManifest.xml:23:13-41
+		ADDED from /workspaces/osuTunes/app/src/main/AndroidManifest.xml:21:13-41
 intent-filter#action:name:android.intent.action.MAIN+category:name:android.intent.category.LAUNCHER
-ADDED from /workspaces/osuTunes/app/src/main/AndroidManifest.xml:25:13-28:29
+ADDED from /workspaces/osuTunes/app/src/main/AndroidManifest.xml:23:13-26:29
 action#android.intent.action.MAIN
-ADDED from /workspaces/osuTunes/app/src/main/AndroidManifest.xml:26:17-69
+ADDED from /workspaces/osuTunes/app/src/main/AndroidManifest.xml:24:17-69
 	android:name
-		ADDED from /workspaces/osuTunes/app/src/main/AndroidManifest.xml:26:25-66
+		ADDED from /workspaces/osuTunes/app/src/main/AndroidManifest.xml:24:25-66
 category#android.intent.category.LAUNCHER
-ADDED from /workspaces/osuTunes/app/src/main/AndroidManifest.xml:27:17-77
+ADDED from /workspaces/osuTunes/app/src/main/AndroidManifest.xml:25:17-77
 	android:name
-		ADDED from /workspaces/osuTunes/app/src/main/AndroidManifest.xml:27:27-74
+		ADDED from /workspaces/osuTunes/app/src/main/AndroidManifest.xml:25:27-74
 service#com.example.osutunes.PlaybackService
-ADDED from /workspaces/osuTunes/app/src/main/AndroidManifest.xml:32:9-35:61
+ADDED from /workspaces/osuTunes/app/src/main/AndroidManifest.xml:30:9-33:61
 	android:exported
-		ADDED from /workspaces/osuTunes/app/src/main/AndroidManifest.xml:34:13-37
+		ADDED from /workspaces/osuTunes/app/src/main/AndroidManifest.xml:32:13-37
 	android:foregroundServiceType
-		ADDED from /workspaces/osuTunes/app/src/main/AndroidManifest.xml:35:13-58
+		ADDED from /workspaces/osuTunes/app/src/main/AndroidManifest.xml:33:13-58
 	android:name
-		ADDED from /workspaces/osuTunes/app/src/main/AndroidManifest.xml:33:13-44
+		ADDED from /workspaces/osuTunes/app/src/main/AndroidManifest.xml:31:13-44
 uses-sdk
 INJECTED from /workspaces/osuTunes/app/src/main/AndroidManifest.xml reason: use-sdk injection requested
 INJECTED from /workspaces/osuTunes/app/src/main/AndroidManifest.xml

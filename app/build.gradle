@@ -11,9 +11,9 @@ android {
     defaultConfig {
         applicationId "com.example.osutunes"
         minSdk 24
-        targetSdk 35
+        targetSdk 34
         versionCode 4
-        versionName "4.0.20_wl2.5+osz"
+        versionName "4.0.20_wl2+osz"
     }
 
     buildTypes {

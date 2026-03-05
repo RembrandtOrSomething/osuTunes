@@ -6,10 +6,8 @@
     
     <!-- Permission for wakelock to keep device awake during playback -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />
-    <!-- Needed when starting a foreground service on API 28+ -->
+    <!-- needed when starting a foreground service on API 28+ -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <!-- Required for Android 12+ foreground service media playback enforcement -->
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
 
     <application
         android:allowBackup="true"

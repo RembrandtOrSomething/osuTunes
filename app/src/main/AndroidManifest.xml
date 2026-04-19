@@ -8,6 +8,8 @@
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <!-- needed when starting a foreground service on API 28+ -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <!-- needed for media playback foreground service on API 34+ -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
 
     <application
         android:allowBackup="true"

@@ -3,8 +3,11 @@ package com.example.osutunes
 import android.app.Activity
 import android.app.AlertDialog
 import android.animation.ObjectAnimator
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
+import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.media.MediaPlayer
@@ -16,7 +19,7 @@ import com.example.osutunes.PlaybackService
 import android.os.Handler
 import android.os.Looper
 import android.os.PowerManager
-
+import android.os.Process
 import android.text.Editable
 import android.text.TextWatcher
 import android.util.AttributeSet
@@ -30,6 +33,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.documentfile.provider.DocumentFile
 import androidx.lifecycle.lifecycleScope
+import com.example.osutunes.AppLogger
 import kotlinx.coroutines.*
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -44,7 +48,6 @@ import java.io.InputStreamReader
 import java.util.*
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.zip.ZipInputStream
-import android.os.Process
 import com.example.osutunes.R
 
 class MainActivity : AppCompatActivity() {
@@ -121,11 +124,43 @@ class MainActivity : AppCompatActivity() {
     private var currentTempo = 1.0f
     private var currentPitch = 1.0f
     private var currentIndex = 0
-    private var mediaPlayer: MediaPlayer? = null
+    private var isPlaying = false
     private var currentDirUri: Uri? = null
     private var isUserSeeking = false
     private val handler = Handler(Looper.getMainLooper())
     private var songAdapter: SongAdapter? = null
+    
+    private val completionReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            if (intent.action == PlaybackService.ACTION_COMPLETION) {
+                if (isRepeating) {
+                    // Repeat current song
+                    playSong(currentIndex)
+                } else {
+                    playNext()
+                }
+            }
+        }
+    }
+    
+    private val positionUpdateReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            if (intent.action == PlaybackService.ACTION_POSITION_UPDATE) {
+                val currentPos = intent.getIntExtra(PlaybackService.EXTRA_CURRENT_POS, 0)
+                val duration = intent.getIntExtra(PlaybackService.EXTRA_DURATION, 0)
+                
+                if (!isUserSeeking) {
+                    songSeekBar.progress = currentPos
+                    currentTimeTextView.text = formatTime(currentPos)
+                }
+                
+                if (duration > 0 && totalTimeTextView.text == "0:00") {
+                    songSeekBar.max = duration
+                    totalTimeTextView.text = formatTime(duration)
+                }
+            }
+        }
+    }
     
     // Playback list - permanent shuffled playlist that doesn't change with search
     private var currentPlaybackList = mutableListOf<SongEntry>()
@@ -187,15 +222,19 @@ class MainActivity : AppCompatActivity() {
         setupCrashHandler()
         setContentView(R.layout.activity_main)
         
-
+        LocalBroadcastManager.getInstance(this).registerReceiver(completionReceiver, IntentFilter(PlaybackService.ACTION_COMPLETION))
+        LocalBroadcastManager.getInstance(this).registerReceiver(positionUpdateReceiver, IntentFilter(PlaybackService.ACTION_POSITION_UPDATE))
+        
         initViews()
         setupListeners()
         loadInitialData()
+        AppLogger.clearLogs(this)
+        showLogLocation()
     }
 
     private fun setupCrashHandler() {
         Thread.setDefaultUncaughtExceptionHandler { thread, exception ->
-            Log.e(TAG, "FATAL CRASH on Thread: ${thread.name}", exception)
+            AppLogger.error(this, TAG, "FATAL CRASH on Thread: ${thread.name}", exception)
             Handler(Looper.getMainLooper()).post {
                 val errorMsg = "FATAL CRASH: ${exception.javaClass.simpleName} - ${exception.message}"
                 Toast.makeText(this, errorMsg, Toast.LENGTH_LONG).show()
@@ -208,6 +247,11 @@ class MainActivity : AppCompatActivity() {
             Process.killProcess(Process.myPid())
             System.exit(10)
         }
+    }
+
+    private fun showLogLocation() {
+        val path = AppLogger.getLogPath(this)
+        Toast.makeText(this, "Logs saved: $path", Toast.LENGTH_LONG).show()
     }
 
     private fun initViews() {
@@ -280,7 +324,6 @@ class MainActivity : AppCompatActivity() {
             val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
                 addCategory(Intent.CATEGORY_OPENABLE)
                 type = "*/*"
-                putExtra(Intent.EXTRA_MIME_TYPES, arrayOf("application/zip", "application/octet-stream"))
                 putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
             }
             oszPickerLauncher.launch(intent)
@@ -299,8 +342,12 @@ class MainActivity : AppCompatActivity() {
 
         songSeekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
-                if (fromUser && mediaPlayer != null) {
-                    mediaPlayer!!.seekTo(progress)
+                if (fromUser) {
+                    val intent = Intent(this@MainActivity, PlaybackService::class.java).apply {
+                        action = PlaybackService.ACTION_SEEK
+                        putExtra(PlaybackService.EXTRA_SEEK_POS, progress)
+                    }
+                    startService(intent)
                     currentTimeTextView.text = formatTime(progress)
                 }
             }
@@ -313,7 +360,7 @@ class MainActivity : AppCompatActivity() {
                 val newTempo = (progress / 400.0f * 2.0f) + 0.5f
                 currentTempo = newTempo
                 tempoTextView.text = String.format(Locale.getDefault(), "%.2fx", newTempo)
-                if (fromUser && mediaPlayer != null) {
+                if (fromUser) {
                     applyPlaybackParams()
                     savePlaybackSetting(TEMPO_KEY, currentTempo)
                 }
@@ -327,7 +374,7 @@ class MainActivity : AppCompatActivity() {
                 val newPitch = (progress / 400.0f * 2.0f) + 0.5f
                 currentPitch = newPitch
                 pitchTextView.text = String.format(Locale.getDefault(), "%.2fx", newPitch)
-                if (fromUser && mediaPlayer != null) {
+                if (fromUser && isPlaying) {
                     applyPlaybackParams()
                     savePlaybackSetting(PITCH_KEY, currentPitch)
                 }
@@ -429,7 +476,7 @@ class MainActivity : AppCompatActivity() {
         tempoTextView.text = String.format(Locale.getDefault(), "%.2fx", currentTempo)
         val tempoProgress = ((currentTempo - 0.5f) / 2.0f * 400.0f).toInt().coerceIn(0, 400)
         tempoSeekBar.progress = tempoProgress
-        if (mediaPlayer != null) applyPlaybackParams()
+        if (isPlaying) applyPlaybackParams()
         savePlaybackSetting(TEMPO_KEY, currentTempo)
         Toast.makeText(this, "Tempo reset to 1.00x", Toast.LENGTH_SHORT).show()
     }
@@ -439,7 +486,7 @@ class MainActivity : AppCompatActivity() {
         pitchTextView.text = String.format(Locale.getDefault(), "%.2fx", currentPitch)
         val pitchProgress = ((currentPitch - 0.5f) / 2.0f * 400.0f).toInt().coerceIn(0, 400)
         pitchSeekBar.progress = pitchProgress
-        if (mediaPlayer != null) applyPlaybackParams()
+        if (isPlaying) applyPlaybackParams()
         savePlaybackSetting(PITCH_KEY, currentPitch)
         Toast.makeText(this, "Pitch reset to 1.00x", Toast.LENGTH_SHORT).show()
     }
@@ -461,7 +508,7 @@ class MainActivity : AppCompatActivity() {
                     tempoTextView.text = String.format(Locale.getDefault(), "%.2fx", newTempo)
                     val tempoProgress = ((newTempo - 0.5f) / 2.0f * 400.0f).toInt().coerceIn(0, 400)
                     tempoSeekBar.progress = tempoProgress
-                    if (mediaPlayer != null) applyPlaybackParams()
+                    if (isPlaying) applyPlaybackParams()
                     savePlaybackSetting(TEMPO_KEY, currentTempo)
                     Toast.makeText(this, "Tempo set to ${String.format(Locale.getDefault(), "%.2fx", newTempo)}", Toast.LENGTH_SHORT).show()
                 } catch (e: NumberFormatException) {
@@ -489,7 +536,7 @@ class MainActivity : AppCompatActivity() {
                     pitchTextView.text = String.format(Locale.getDefault(), "%.2fx", newPitch)
                     val pitchProgress = ((newPitch - 0.5f) / 2.0f * 400.0f).toInt().coerceIn(0, 400)
                     pitchSeekBar.progress = pitchProgress
-                    if (mediaPlayer != null) applyPlaybackParams()
+                    if (isPlaying) applyPlaybackParams()
                     savePlaybackSetting(PITCH_KEY, currentPitch)
                     Toast.makeText(this, "Pitch set to ${String.format(Locale.getDefault(), "%.2fx", newPitch)}", Toast.LENGTH_SHORT).show()
                 } catch (e: NumberFormatException) {
@@ -687,19 +734,12 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun applyPlaybackParams() {
-        if (mediaPlayer != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            try {
-                val params = mediaPlayer!!.playbackParams
-                params.speed = currentTempo
-                params.pitch = currentPitch
-                mediaPlayer!!.playbackParams = params
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to set PlaybackParams.", e)
-                Toast.makeText(this, "Speed/Pitch control unavailable or failed.", Toast.LENGTH_SHORT).show()
-            }
-        } else if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
-            Toast.makeText(this, "Speed/Pitch control requires Android 6.0 (API 23) or higher.", Toast.LENGTH_LONG).show()
+        val intent = Intent(this, PlaybackService::class.java).apply {
+            action = PlaybackService.ACTION_SET_PARAMS
+            putExtra(PlaybackService.EXTRA_TEMPO, currentTempo)
+            putExtra(PlaybackService.EXTRA_PITCH, currentPitch)
         }
+        startService(intent)
     }
 
     private fun togglePlayback() {
@@ -708,43 +748,26 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
-        if (mediaPlayer == null) {
+        if (!isPlaying) {
             playSong(currentIndex)
         } else {
-            try {
-                if (mediaPlayer!!.isPlaying) {
-                    mediaPlayer!!.pause()
-                    playButton.text = "▶"
-                    stopPlaybackService()
-                } else {
-                    mediaPlayer!!.start()
-                    applyPlaybackParams()
-                    playButton.text = "⏸"
-                    startPlaybackService()
-                }
-            } catch (e: IllegalStateException) {
-                Log.e(TAG, "IllegalStateException during togglePlayback.", e)
-                Toast.makeText(this, "Playback error, trying to restart song.", Toast.LENGTH_SHORT).show()
-                playSong(currentIndex)
-            }
+            pausePlayback()
         }
+    }
+
+    private fun pausePlayback() {
+        val intent = Intent(this, PlaybackService::class.java).apply {
+            action = PlaybackService.ACTION_PAUSE
+        }
+        startService(intent)
+        isPlaying = false
+        playButton.text = "▶"
     }
 
     private val updateSeekBar = object : Runnable {
         override fun run() {
-            if (mediaPlayer != null && !isUserSeeking) {
-                try {
-                    val currentPos = mediaPlayer!!.currentPosition
-                    val totalDuration = mediaPlayer!!.duration
-                    songSeekBar.progress = currentPos
-                    currentTimeTextView.text = formatTime(currentPos)
-                    if (totalDuration > 0 && totalTimeTextView.text == "0:00") {
-                        totalTimeTextView.text = formatTime(totalDuration)
-                    }
-                } catch (e: IllegalStateException) {
-                    Log.w(TAG, "Ignoring IllegalStateException during seekBar update.")
-                }
-            }
+            // Disabled seek bar updates since MediaPlayer is in service
+            // TODO: Implement binding to get position from service
             handler.postDelayed(this, 500)
         }
     }
@@ -763,83 +786,31 @@ class MainActivity : AppCompatActivity() {
 
         Log.d(TAG, "Playing song at index $index: ${songEntry.label}")
 
-        try {
-            mediaPlayer?.release()
-            // stop service when switching songs (it will be restarted when new track begins)
-            stopPlaybackService()
-        } catch (e: Exception) {
-            Log.w(TAG, "Error releasing old media player.", e)
+        // Send play intent to service
+        val intent = Intent(this, PlaybackService::class.java).apply {
+            action = PlaybackService.ACTION_PLAY
+            putExtra(PlaybackService.EXTRA_URI, songEntry.uriString)
         }
-        mediaPlayer = null
+        Log.d(TAG, "Sending ACTION_PLAY with uri: ${songEntry.uriString}")
+        startService(intent)
+
+        // Start foreground service - now handled in ACTION_PLAY
+        // startPlaybackService()
+
+        isPlaying = true
+        playButton.text = "⏸"
+
+        // Show now playing bar and highlight song
+        nowPlayingText.text = "Now Playing: ${songEntry.label}"
+        nowPlayingBar.visibility = View.VISIBLE
+        songAdapter?.setCurrentlyPlaying(songEntry)
+
+        Toast.makeText(this, "Playing: ${songEntry.label}", Toast.LENGTH_SHORT).show()
+        Log.d(TAG, "Playing: ${songEntry.label}")
+
+        // For seek bar, we'll need to implement binding or periodic updates
+        // For now, disable seek bar updates
         handler.removeCallbacks(updateSeekBar)
-        songSeekBar.progress = 0
-        currentTimeTextView.text = "0:00"
-        totalTimeTextView.text = "0:00"
-
-        mediaPlayer = MediaPlayer()
-
-        try {
-            contentResolver.openAssetFileDescriptor(Uri.parse(songEntry.uriString), "r")?.use { descriptor ->
-                mediaPlayer!!.setDataSource(descriptor.fileDescriptor, descriptor.startOffset, descriptor.length)
-            } ?: run {
-                Toast.makeText(this, "Failed to load descriptor for: ${songEntry.label}", Toast.LENGTH_LONG).show()
-                playButton.text = "▶"
-                return
-            }
-
-            mediaPlayer!!.setOnPreparedListener {
-                applyPlaybackParams()
-                it.start()
-                
-                // start foreground service which acquires a strong wakelock
-                startPlaybackService()
-                
-                playButton.text = "⏸"
-                
-                // Show now playing bar and highlight song
-                nowPlayingText.text = "Now Playing: ${songEntry.label}"
-                nowPlayingBar.visibility = View.VISIBLE
-                songAdapter?.setCurrentlyPlaying(songEntry)
-                
-                Toast.makeText(this, "Playing: ${songEntry.label}", Toast.LENGTH_SHORT).show()
-                Log.d(TAG, "Playing: ${songEntry.label}")
-
-                songSeekBar.max = it.duration
-                totalTimeTextView.text = formatTime(it.duration)
-                handler.post(updateSeekBar)
-            }
-
-            mediaPlayer!!.setOnErrorListener { _, what, extra ->
-                 Log.e(TAG, "MediaPlayer Error: what=$what, extra=$extra for ${songEntry.label}")
-                 Toast.makeText(this, "Playback Error ($what).", Toast.LENGTH_LONG).show()
-                 // stop service which will release the wakelock
-                 stopPlaybackService()
-                 mediaPlayer?.release()
-                 mediaPlayer = null
-                 playButton.text = "▶"
-                 false
-            }
-
-            mediaPlayer!!.setOnCompletionListener {
-                if (isRepeating) {
-                    mediaPlayer!!.seekTo(0)
-                    mediaPlayer!!.start()
-                } else {
-                    playNext()
-                }
-            }
-            mediaPlayer!!.prepareAsync()
-            playButton.text = "⏳"
-
-        } catch (e: Exception) {
-            Toast.makeText(this, "Fatal error setting up player for: ${songEntry.label}", Toast.LENGTH_LONG).show()
-            Log.e(TAG, "Failed to setup media player.", e)
-            // stop service in case it had been started
-            stopPlaybackService()
-            mediaPlayer?.release()
-            mediaPlayer = null
-            playButton.text = "▶"
-        }
     }
 
     private fun playNext() {
@@ -1507,14 +1478,14 @@ class MainActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        LocalBroadcastManager.getInstance(this).unregisterReceiver(completionReceiver)
+        LocalBroadcastManager.getInstance(this).unregisterReceiver(positionUpdateReceiver)
         savePlaybackSetting(TEMPO_KEY, currentTempo)
         savePlaybackSetting(PITCH_KEY, currentPitch)
         handler.removeCallbacks(updateSeekBar)
         // ensure service is stopped as part of teardown
         stopPlaybackService()
-        mediaPlayer?.release()
-        mediaPlayer = null
-        Log.d(TAG, "App destroyed, media player released")
+        Log.d(TAG, "App destroyed")
     }
 }
 

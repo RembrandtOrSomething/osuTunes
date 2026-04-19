@@ -2,7 +2,7 @@
 2<manifest xmlns:android="http://schemas.android.com/apk/res/android"
 3    package="com.example.osutunes"
 4    android:versionCode="4"
-5    android:versionName="4.0.20_wl2+osz" >
+5    android:versionName="4.4.16" >
 6
 7    <uses-sdk
 8        android:minSdkVersion="24"

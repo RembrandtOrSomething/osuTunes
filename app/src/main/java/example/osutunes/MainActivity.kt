@@ -154,7 +154,7 @@ class MainActivity : AppCompatActivity() {
                     currentTimeTextView.text = formatTime(currentPos)
                 }
                 
-                if (duration > 0 && totalTimeTextView.text == "0:00") {
+                if (duration > 0 && (songSeekBar.max != duration || totalTimeTextView.text != formatTime(duration))) {
                     songSeekBar.max = duration
                     totalTimeTextView.text = formatTime(duration)
                 }

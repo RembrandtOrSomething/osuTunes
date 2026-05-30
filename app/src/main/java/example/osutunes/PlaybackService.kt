@@ -44,6 +44,9 @@ class PlaybackService : Service() {
 
     private var wakeLock: PowerManager.WakeLock? = null
     private var mediaPlayer: MediaPlayer? = null
+    private var currentSongUri: Uri? = null
+    private var currentTempo: Float = 1.0f
+    private var currentPitch: Float = 1.0f
     private var audioManager: AudioManager? = null
     private var audioFocusChangeListener: AudioManager.OnAudioFocusChangeListener? = null
     private var positionUpdateHandler = android.os.Handler(android.os.Looper.getMainLooper())
@@ -87,11 +90,22 @@ class PlaybackService : Service() {
                 }
                 ACTION_PLAY -> {
                     val uriString = intent.getStringExtra(EXTRA_URI)
-                    AppLogger.info(this, TAG, "ACTION_PLAY received with uri: $uriString")
-                    Log.d(TAG, "ACTION_PLAY received with uri: $uriString")
+                    currentTempo = intent.getFloatExtra(EXTRA_TEMPO, currentTempo)
+                    currentPitch = intent.getFloatExtra(EXTRA_PITCH, currentPitch)
+                    AppLogger.info(this, TAG, "ACTION_PLAY received with uri: $uriString tempo=$currentTempo pitch=$currentPitch")
+                    Log.d(TAG, "ACTION_PLAY received with uri: $uriString tempo=$currentTempo pitch=$currentPitch")
                     if (uriString != null) {
-                        AppLogger.info(this, TAG, "Starting playSong and acquiring foreground service status")
-                        playSong(Uri.parse(uriString))
+                        val requestedUri = Uri.parse(uriString)
+                        if (mediaPlayer != null && currentSongUri == requestedUri) {
+                            if (!mediaPlayer!!.isPlaying) {
+                                applyPlaybackParams(currentTempo, currentPitch)
+                                mediaPlayer!!.start()
+                                startPositionUpdates()
+                            }
+                        } else {
+                            AppLogger.info(this, TAG, "Starting playSong and acquiring foreground service status")
+                            playSong(requestedUri)
+                        }
                         acquireWakeLock()
                         try {
                             startForeground(1, buildNotification())
@@ -113,8 +127,10 @@ class PlaybackService : Service() {
                     mediaPlayer?.seekTo(pos)
                 }
                 ACTION_SET_PARAMS -> {
-                    val tempo = intent.getFloatExtra(EXTRA_TEMPO, 1.0f)
-                    val pitch = intent.getFloatExtra(EXTRA_PITCH, 1.0f)
+                    val tempo = intent.getFloatExtra(EXTRA_TEMPO, currentTempo)
+                    val pitch = intent.getFloatExtra(EXTRA_PITCH, currentPitch)
+                    currentTempo = tempo
+                    currentPitch = pitch
                     AppLogger.info(this, TAG, "ACTION_SET_PARAMS tempo=$tempo pitch=$pitch")
                     applyPlaybackParams(tempo, pitch)
                 }
@@ -160,6 +176,7 @@ class PlaybackService : Service() {
     }
 
     private fun playSong(uri: Uri) {
+        currentSongUri = uri
         AppLogger.info(this, TAG, "playSong called with uri: $uri")
         Log.d(TAG, "playSong called with uri: $uri")
         try {
@@ -181,6 +198,7 @@ class PlaybackService : Service() {
             mediaPlayer!!.setOnPreparedListener { mp ->
                 AppLogger.info(this, TAG, "=== OnPreparedListener CALLED ===")
                 Log.d(TAG, "MediaPlayer prepared")
+                applyPlaybackParams(currentTempo, currentPitch)
                 val result = audioManager?.requestAudioFocus(audioFocusChangeListener, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN)
                 AppLogger.info(this, TAG, "Audio focus request result: $result")
                 Log.d(TAG, "Audio focus request result: $result")
@@ -240,6 +258,7 @@ class PlaybackService : Service() {
         mediaPlayer?.stop()
         mediaPlayer?.release()
         mediaPlayer = null
+        currentSongUri = null
         audioManager?.abandonAudioFocus(audioFocusChangeListener)
     }
 

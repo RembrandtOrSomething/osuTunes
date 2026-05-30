@@ -14,6 +14,8 @@ data class SongEntry(
     val uriString: String,
     val artist: String,
     val title: String
+    ,
+    val tags: List<String>? = null
     // Note: If you need to include more properties like length or lastModified,
     // they should be added here and handled in SongScanner.
 )
@@ -26,4 +28,6 @@ data class OsuMetadata(
     val audioFilename: String, 
     val artist: String, 
     val title: String
+    ,
+    val tags: List<String>? = null
 )

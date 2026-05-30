@@ -70,7 +70,8 @@ class MainActivity : AppCompatActivity() {
         val title: String,
         val bpm: Double? = null,
         val bpmRange: String? = null,  // NEW: "xbpm to ybpm (mostly zbpm)"
-        val bpms: List<Double>? = null  // NEW: Store all BPM values
+        val bpms: List<Double>? = null, // NEW: Store all BPM values
+        val tags: List<String>? = null // Tags parsed from .osu (space-separated)
     )
     
     @Serializable
@@ -80,12 +81,13 @@ class MainActivity : AppCompatActivity() {
     )
     
     private data class OsuMetadata(
-        val audioFilename: String, 
-        val artist: String, 
+        val audioFilename: String,
+        val artist: String,
         val title: String,
         val bpm: Double? = null,
-        val bpmRange: String? = null,  // NEW
-        val bpms: List<Double>? = null  // NEW
+        val bpmRange: String? = null, // NEW
+        val bpms: List<Double>? = null, // NEW
+        val tags: List<String>? = null
     )
 
     // UI Components
@@ -970,15 +972,16 @@ class MainActivity : AppCompatActivity() {
                         "${metadata.artist} - ${metadata.title}"
                     }
                     
-                    // NEW: Include BPM range in the song entry
+                    // NEW: Include BPM range and tags in the song entry
                     entries.add(SongEntry(
-                        label, 
-                        audioFile.uri.toString(), 
-                        metadata.artist, 
-                        metadata.title, 
+                        label,
+                        audioFile.uri.toString(),
+                        metadata.artist,
+                        metadata.title,
                         metadata.bpm,
                         metadata.bpmRange,
-                        metadata.bpms
+                        metadata.bpms,
+                        metadata.tags
                     ))
                 }
             }
@@ -1096,6 +1099,7 @@ class MainActivity : AppCompatActivity() {
                 val allBpms = mutableListOf<Double>()
                 var inTimingSection = false
                 var line: String?
+                val tagsList = mutableListOf<String>()
                 
                 // Variables for BPM timing analysis
                 var lastTime = 0.0
@@ -1121,6 +1125,22 @@ class MainActivity : AppCompatActivity() {
                         }
                         line?.startsWith("Title:") == true -> {
                             title = line?.substringAfter(":")?.trim()
+                        }
+                        line?.startsWith("Tags:") == true -> {
+                            val raw = line?.substringAfter(":")?.trim().orEmpty()
+                            if (raw.isNotEmpty()) {
+                                // Tags in .osu are space-separated
+                                val parts = raw.split("\\s+".toRegex()).map { it.trim() }.filter { it.isNotEmpty() }
+                                // store as list of strings
+                                // assign to local variable via a temp list
+                                val parsedTags = parts
+                                // set tags variable outside when
+                                // we'll return tags via OsuMetadata
+                                // use a temporary approach: append to a local mutable list
+                                // (we'll create tagsList above)
+                                tagsList.clear()
+                                tagsList.addAll(parsedTags)
+                            }
                         }
                         inTimingSection -> {
                             val timingParts = line?.split(",")
@@ -1179,7 +1199,7 @@ class MainActivity : AppCompatActivity() {
                     val (mainBpm, bpmRange) = analyzeBpms(allBpms, bpmSegments, file.name ?: "unknown")
                     
                     Log.d(TAG, "BPM Analysis for ${file.name}: $bpmRange")
-                    OsuMetadata(audioFilename, artist, title, mainBpm, bpmRange, allBpms.distinct())
+                    OsuMetadata(audioFilename, artist, title, mainBpm, bpmRange, allBpms.distinct(), if (tagsList.isEmpty()) null else tagsList.toList())
                 } else null
             }
         } catch (e: Exception) {
@@ -1366,6 +1386,11 @@ class MainActivity : AppCompatActivity() {
                             // Search in title and artist
                             val matchesText = song.title.lowercase(Locale.getDefault()).contains(query) ||
                                             song.artist.lowercase(Locale.getDefault()).contains(query)
+
+                            // Search by tags
+                            val matchesTags = song.tags?.any { tag ->
+                                tag.lowercase(Locale.getDefault()).contains(query)
+                            } ?: false
                             
                             // Search by BPM (exact or approximate)
                             val matchesBpm = if (song.bpm != null) {
@@ -1393,7 +1418,7 @@ class MainActivity : AppCompatActivity() {
                                 false
                             }
                             
-                            matchesText || matchesBpm
+                            matchesText || matchesBpm || matchesTags
                         }
                     }
                     results.values = filteredList
